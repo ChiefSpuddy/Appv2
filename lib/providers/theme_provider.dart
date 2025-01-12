@@ -38,7 +38,7 @@ class ThemeProvider with ChangeNotifier {
           elevation: 0,
           backgroundColor: Color(0xFF2D2D2D),
           foregroundColor: Colors.white,
-          iconTheme: IconThemeData(color: Colors.white),
+          iconTheme: IconThemeData(color: Colors.white70),
         ),
         navigationBarTheme: NavigationBarThemeData(
           backgroundColor: const Color(0xFF2D2D2D),
@@ -57,6 +57,15 @@ class ThemeProvider with ChangeNotifier {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(8),
           ),
+          textStyle: const TextStyle(color: Colors.white70),
+        ),
+        iconTheme: const IconThemeData(
+          color: Colors.white70,
+        ),
+        textTheme: const TextTheme(
+          bodyLarge: TextStyle(color: Colors.white70),
+          bodyMedium: TextStyle(color: Colors.white70),
+          titleMedium: TextStyle(color: Colors.white),
         ),
       );
 

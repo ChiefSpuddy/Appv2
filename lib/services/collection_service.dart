@@ -220,6 +220,58 @@ class CollectionService {
         }
       }
 
+      // Add monthly stats calculation
+      final now = DateTime.now();
+      final startOfMonth = DateTime(now.year, now.month, 1);
+      
+      // Get all card additions this month
+      final monthlyAdditions = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userId)
+          .collection('cards')
+          .where('addedAt', isGreaterThanOrEqualTo: startOfMonth)
+          .get();
+
+      // Calculate monthly stats
+      final monthlyStats = {
+        'cardsAdded': monthlyAdditions.docs.length,
+        'valueAdded': monthlyAdditions.docs
+            .map((doc) => doc.data()['price'] as double? ?? 0.0)
+            .fold<double>(0, (sum, price) => sum + price),
+        'growthPercentage': 0.0,
+        'valueGrowth': 0.0,
+      };
+
+      // Calculate growth percentage if we have previous month's data
+      final lastMonth = DateTime(now.year, now.month - 1, 1);
+      final previousMonthSnapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userId)
+          .collection('monthlyStats')
+          .doc(lastMonth.toString().substring(0, 7))
+          .get();
+
+      if (previousMonthSnapshot.exists) {
+        final previousValue = previousMonthSnapshot.data()?['totalValue'] as double? ?? 0.0;
+        if (previousValue > 0) {
+          final currentValue = monthlyStats['valueAdded'] as double;
+          monthlyStats['valueGrowth'] = currentValue - previousValue;
+          monthlyStats['growthPercentage'] = ((currentValue - previousValue) / previousValue) * 100;
+        }
+      }
+
+      // Store current month's stats
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userId)
+          .collection('monthlyStats')
+          .doc(now.toString().substring(0, 7))
+          .set({
+        'totalValue': totalValue,
+        'cardCount': cards.length,
+        'timestamp': FieldValue.serverTimestamp(),
+      });
+
       return {
         'totalCards': cards.length,
         'totalValue': totalValue,
@@ -240,7 +292,7 @@ class CollectionService {
           'gradeBonus': collectorScore['gradeBonus'],
           'streakBonus': collectorScore['streakBonus'],
         },
-        'monthlyStats': await _getMonthlyStats(),
+        'monthlyStats': monthlyStats,
         'nextMilestone': nextMilestone,
         'recentMilestones': recentMilestones,
       };

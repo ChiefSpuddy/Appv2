@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'home_screen.dart';  // Add this import
 
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
@@ -40,6 +41,12 @@ class _AuthScreenState extends State<AuthScreen> {
             email: _emailController.text.trim(),
             password: _passwordController.text,
           );
+          if (context.mounted) {
+            Navigator.of(context).pushAndRemoveUntil(
+              MaterialPageRoute(builder: (_) => const HomeScreen()),
+              (route) => false,
+            );
+          }
         } else {
           // Sign Up Process
           print('Starting sign up process...'); // Debug print

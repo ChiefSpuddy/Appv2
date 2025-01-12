@@ -58,30 +58,42 @@ class CollectionScreen extends StatelessWidget {
       stream: FirebaseAuth.instance.authStateChanges(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
         }
 
-        // If not authenticated, show login prompt
+        // If not authenticated, show login prompt in a Scaffold
         if (!snapshot.hasData) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(Icons.lock_outline, size: 64, color: Colors.grey),
-                const SizedBox(height: 16),
-                const Text(
-                  'Sign in to view your collection',
-                  style: TextStyle(fontSize: 18),
-                ),
-                const SizedBox(height: 24),
-                ElevatedButton(
-                  onPressed: () => Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(builder: (_) => const AuthScreen()),
+          return Scaffold(
+            body: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.lock_outline, size: 64, color: Colors.grey),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Sign in to view your collection',
+                    style: TextStyle(fontSize: 18),
                   ),
-                  child: const Text('Sign In'),
-                ),
-              ],
+                  const SizedBox(height: 24),
+                  ElevatedButton(
+                    onPressed: () => Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const AuthScreen(),
+                      ),
+                    ),
+                    child: const Padding(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 24, 
+                        vertical: 12,
+                      ),
+                      child: Text('Sign In'),
+                    ),
+                  ),
+                ],
+              ),
             ),
           );
         }
@@ -116,6 +128,10 @@ class CollectionScreen extends StatelessWidget {
                   constraints: const BoxConstraints(maxWidth: 280), // Prevent overflow
                   onSelected: (value) async {
                     switch (value) {
+                      case 'toggle_theme':
+                        // Simply toggle theme without navigation
+                        Provider.of<ThemeProvider>(context, listen: false).toggleTheme();
+                        break;
                       case 'view_grid':
                         _switchTab(context, 0);
                         break;
@@ -149,6 +165,24 @@ class CollectionScreen extends StatelessWidget {
                     }
                   },
                   itemBuilder: (context) => [
+                    // Add this as the first menu item
+                    PopupMenuItem<String>(
+                      value: 'toggle_theme',
+                      child: ListTile(
+                        dense: true,
+                        leading: Icon(
+                          Provider.of<ThemeProvider>(context, listen: false).isDarkMode 
+                              ? Icons.light_mode 
+                              : Icons.dark_mode
+                        ),
+                        title: Text(
+                          Provider.of<ThemeProvider>(context, listen: false).isDarkMode
+                              ? 'Light Mode'
+                              : 'Dark Mode'
+                        ),
+                      ),
+                    ),
+                    const PopupMenuDivider(),
                     PopupMenuItem(
                       value: 'view_grid',
                       child: ListTile( // Use ListTile for better spacing

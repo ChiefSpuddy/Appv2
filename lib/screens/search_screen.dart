@@ -321,6 +321,7 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   Widget _buildSuggestionsList() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     if (_suggestions.isEmpty) return const SizedBox.shrink();
     
     return Container(
@@ -328,8 +329,10 @@ class _SearchScreenState extends State<SearchScreen> {
       margin: const EdgeInsets.only(top: 8),
       constraints: const BoxConstraints(maxHeight: 200),
       decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border.all(color: Colors.grey[300]!),
+        color: isDark ? Colors.grey[900] : Colors.white,
+        border: Border.all(
+          color: isDark ? Colors.grey[800]! : Colors.grey[300]!,
+        ),
         borderRadius: BorderRadius.circular(4),
         boxShadow: [
           BoxShadow(
@@ -367,18 +370,19 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   Widget _buildSearchField() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return TextField(
       controller: _searchController,
       decoration: InputDecoration(
         hintText: 'Search by name...',
         filled: true,
-        fillColor: Colors.grey[100],
+        fillColor: isDark ? Colors.grey[900] : Colors.grey[100],
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide.none,
         ),
-        prefixIcon: Icon(Icons.search, color: Colors.grey[600]),
+        prefixIcon: Icon(Icons.search, color: isDark ? Colors.grey[400] : Colors.grey[600]),
         suffixIcon: _searchController.text.isNotEmpty || _isLoading
           ? Row(
               mainAxisSize: MainAxisSize.min,
@@ -400,6 +404,12 @@ class _SearchScreenState extends State<SearchScreen> {
               ],
             )
           : null,
+        hintStyle: TextStyle(
+          color: isDark ? Colors.grey[500] : Colors.grey[600],
+        ),
+      ),
+      style: TextStyle(
+        color: isDark ? Colors.white : Colors.black87,
       ),
       onChanged: _onSearchChanged,
       textInputAction: TextInputAction.search,
@@ -457,16 +467,23 @@ class _SearchScreenState extends State<SearchScreen> {
   @override
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     
     return Material(  // Add this Material widget
       child: Container(
-        color: Colors.grey[100], // Light background
+        color: Theme.of(context).scaffoldBackgroundColor, // Light background
         child: Column(
           children: [
             AppBar(
               elevation: 0,
-              backgroundColor: Colors.white,
-              title: const Text('TCG Card Search'),
+              backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
+              iconTheme: Theme.of(context).appBarTheme.iconTheme,
+              title: Text(
+                'TCG Card Search',
+                style: TextStyle(
+                  color: Theme.of(context).appBarTheme.foregroundColor,
+                ),
+              ),
               actions: [
                 // Add clear button before the menu
                 IconButton(
@@ -579,7 +596,7 @@ class _SearchScreenState extends State<SearchScreen> {
               child: Column(
                 children: [
                   Container(
-                    color: Colors.white,
+                    color: Theme.of(context).cardColor,
                     padding: const EdgeInsets.all(16),
                     child: Column(
                       children: [
@@ -587,7 +604,57 @@ class _SearchScreenState extends State<SearchScreen> {
                           children: [
                             Expanded(
                               flex: 7,
-                              child: _buildSearchField(),
+                              child: TextField(
+                                controller: _searchController,
+                                decoration: InputDecoration(
+                                  hintText: 'Search by name...',
+                                  filled: true,
+                                  fillColor: isDark ? Colors.grey[900] : Colors.grey[100],
+                                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    borderSide: BorderSide.none,
+                                  ),
+                                  prefixIcon: Icon(
+                                    Icons.search,
+                                    color: isDark ? Colors.grey[400] : Colors.grey[600],
+                                  ),
+                                  suffixIcon: _searchController.text.isNotEmpty || _isLoading
+                                    ? Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          if (_isLoading)
+                                            Padding(
+                                              padding: const EdgeInsets.all(8.0),
+                                              child: SizedBox(
+                                                width: 20,
+                                                height: 20,
+                                                child: CircularProgressIndicator(
+                                                  strokeWidth: 2,
+                                                  color: isDark ? Colors.white70 : null,
+                                                ),
+                                              ),
+                                            )
+                                          else
+                                            IconButton(
+                                              icon: Icon(
+                                                Icons.clear,
+                                                color: isDark ? Colors.grey[400] : Colors.grey[600],
+                                              ),
+                                              onPressed: _clearSearch,
+                                            ),
+                                        ],
+                                      )
+                                    : null,
+                                  hintStyle: TextStyle(
+                                    color: isDark ? Colors.grey[500] : Colors.grey[600],
+                                  ),
+                                ),
+                                style: TextStyle(
+                                  color: isDark ? Colors.white : Colors.black87,
+                                ),
+                                // ...rest of TextField properties
+                              ),
                             ),
                             const SizedBox(width: 8),
                             Expanded(
@@ -597,7 +664,7 @@ class _SearchScreenState extends State<SearchScreen> {
                                 decoration: InputDecoration(
                                   hintText: 'Set #',
                                   filled: true,
-                                  fillColor: Colors.grey[100],
+                                  fillColor: isDark ? Colors.grey[900] : Colors.grey[100],
                                   contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                                   border: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(12),
@@ -605,20 +672,29 @@ class _SearchScreenState extends State<SearchScreen> {
                                   ),
                                   suffixIcon: _setNumberController.text.isNotEmpty
                                     ? IconButton(
-                                        icon: const Icon(Icons.clear),
+                                        icon: Icon(
+                                          Icons.clear,
+                                          color: isDark ? Colors.grey[400] : Colors.grey[600],
+                                        ),
                                         onPressed: () {
                                           _setNumberController.clear();
                                           _performSearch(_searchController.text);
                                         },
                                       )
                                     : null,
+                                  hintStyle: TextStyle(
+                                    color: isDark ? Colors.grey[500] : Colors.grey[600],
+                                  ),
                                 ),
-                                onChanged: (value) => _performSearch(_searchController.text),
+                                style: TextStyle(
+                                  color: isDark ? Colors.white : Colors.black87,
+                                ),
+                                // ...rest of TextField properties
                               ),
                             ),
                           ],
                         ),
-                        _buildSuggestionsList(), // Use the new suggestions list widget
+                        _buildSuggestionsList(),
                       ],
                     ),
                   ),

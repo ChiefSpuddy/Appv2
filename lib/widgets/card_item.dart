@@ -87,6 +87,8 @@ class _CardItemState extends State<CardItem> with SingleTickerProviderStateMixin
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     return GestureDetector(
       onTapDown: (_) => _controller.forward(),
       onTapUp: (_) => _controller.reverse(),
@@ -100,6 +102,7 @@ class _CardItemState extends State<CardItem> with SingleTickerProviderStateMixin
         child: Card(
           clipBehavior: Clip.antiAlias,
           elevation: 2,
+          color: isDark ? Theme.of(context).cardColor : Colors.white,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(8),
           ),
@@ -111,7 +114,7 @@ class _CardItemState extends State<CardItem> with SingleTickerProviderStateMixin
                 Expanded(
                   child: Container(
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: isDark ? Colors.black : Colors.white,
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Stack(
@@ -170,10 +173,10 @@ class _CardItemState extends State<CardItem> with SingleTickerProviderStateMixin
                     children: [
                       Text(
                         '${widget.card.name} ${widget.card.setNumber.isNotEmpty ? "#${widget.card.setNumber}" : ""}',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 11,
-                          color: Colors.black,
+                          color: isDark ? Colors.white : Colors.black87,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -184,9 +187,9 @@ class _CardItemState extends State<CardItem> with SingleTickerProviderStateMixin
                             flex: 3,
                             child: Text(
                               widget.card.setName,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 9,
-                                color: Colors.grey,
+                                color: isDark ? Colors.white60 : Colors.grey[700],
                               ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
@@ -200,7 +203,7 @@ class _CardItemState extends State<CardItem> with SingleTickerProviderStateMixin
                                 style: TextStyle(
                                   fontSize: 10,
                                   fontWeight: FontWeight.bold,
-                                  color: Colors.green[700],
+                                  color: isDark ? Colors.green[300] : Colors.green[700],
                                 ),
                                 textAlign: TextAlign.right,
                               ),

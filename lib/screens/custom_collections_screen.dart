@@ -84,16 +84,34 @@ class CustomCollectionsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final service = CollectionService();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text('Custom Collections'),
-        elevation: 0,
-        backgroundColor: Colors.white,
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _createNewCollection(context, service),
-        child: const Icon(Icons.add),
+        backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
+        leading: IconButton(
+          icon: Icon(
+            Icons.arrow_back,
+            color: Theme.of(context).appBarTheme.foregroundColor,
+          ),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        title: Text(
+          'Custom Collections',
+          style: TextStyle(
+            color: Theme.of(context).appBarTheme.foregroundColor,
+          ),
+        ),
+        actions: [
+          IconButton(
+            icon: Icon(
+              Icons.add,
+              color: Theme.of(context).appBarTheme.foregroundColor,
+            ),
+            onPressed: () => _createNewCollection(context, service),
+          ),
+        ],
       ),
       body: FutureBuilder<List<CustomCollection>>(
         future: service.getCustomCollections(),
@@ -129,12 +147,247 @@ class CustomCollectionsScreen extends StatelessWidget {
             itemCount: collections.length,
             itemBuilder: (context, index) {
               final collection = collections[index];
-              return _CollectionCard(collection: collection);
+              return Card(
+                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                color: isDark ? Theme.of(context).cardColor : Colors.white,
+                child: ListTile(
+                  title: Text(
+                    collection.name,
+                    style: TextStyle(
+                      color: isDark ? Colors.white : Colors.black87,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  subtitle: Text(
+                    '${collection.cardIds.length} cards • ${collection.totalValue?.toStringAsFixed(2) ?? '0.00'}€',
+                    style: TextStyle(
+                      color: isDark ? Colors.white70 : Colors.black54,
+                    ),
+                  ),
+                  leading: Icon(
+                    Icons.collections_bookmark,
+                    color: isDark ? Colors.white70 : Colors.grey[700],
+                  ),
+                  trailing: IconButton(
+                    icon: Icon(
+                      Icons.more_vert,
+                      color: isDark ? Colors.white70 : Colors.grey[700],
+                    ),
+                    onPressed: () => _showCollectionMenu(context, collection, service),
+                  ),
+                  onTap: () => _navigateToCollection(context, collection),
+                ),
+              );
             },
           );
         },
       ),
     );
+  }
+
+  void _showCollectionMenu(BuildContext context, CustomCollection collection, CollectionService service) {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.edit),
+              title: const Text('Edit Collection'),
+              onTap: () {
+                Navigator.pop(context);
+                _editCollection(context, collection, service);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.share),
+              title: const Text('Share Collection'),
+              onTap: () {
+                Navigator.pop(context);
+                _shareCollection(context, collection, service);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.delete_outline, color: Colors.red),
+              title: const Text('Delete Collection', 
+                style: TextStyle(color: Colors.red)),
+              onTap: () {
+                Navigator.pop(context);
+                _confirmDelete(context, collection, service);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _navigateToCollection(BuildContext context, CustomCollection collection) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => CollectionDetailScreen(collection: collection),
+      ),
+    );
+  }
+
+  Future<void> _editCollection(
+    BuildContext context, 
+    CustomCollection collection, 
+    CollectionService service
+  ) async {
+    final formKey = GlobalKey<FormState>();
+    String name = collection.name;
+    String description = collection.description;
+
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Edit Collection'),
+        content: Form(
+          key: formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextFormField(
+                initialValue: collection.name,
+                decoration: const InputDecoration(labelText: 'Name'),
+                validator: (value) => 
+                  value?.isEmpty == true ? 'Please enter a name' : null,
+                onSaved: (value) => name = value ?? '',
+              ),
+              TextFormField(
+                initialValue: collection.description,
+                decoration: const InputDecoration(labelText: 'Description'),
+                onSaved: (value) => description = value ?? '',
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            child: const Text('Cancel'),
+            onPressed: () => Navigator.pop(context, false),
+          ),
+          TextButton(
+            child: const Text('Save'),
+            onPressed: () {
+              if (formKey.currentState?.validate() == true) {
+                formKey.currentState?.save();
+                Navigator.pop(context, true);
+              }
+            },
+          ),
+        ],
+      ),
+    );
+
+    if (result == true && context.mounted) {
+      try {
+        await service.updateCollection(collection.id, name, description);
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Collection updated')),
+          );
+        }
+      } catch (e) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Failed to update collection')),
+          );
+        }
+      }
+    }
+  }
+
+  Future<void> _shareCollection(
+    BuildContext context, 
+    CustomCollection collection,
+    CollectionService service
+  ) async {
+    try {
+      final shareCode = await service.shareCollection(collection.id);
+      if (context.mounted) {
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Share Collection'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text('Share this code with others:'),
+                const SizedBox(height: 16),
+                SelectableText(
+                  shareCode,
+                  style: const TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 2,
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                child: const Text('Close'),
+                onPressed: () => Navigator.pop(context),
+              ),
+            ],
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to generate share code')),
+        );
+      }
+    }
+  }
+
+  Future<void> _confirmDelete(
+    BuildContext context,
+    CustomCollection collection,
+    CollectionService service
+  ) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Collection?'),
+        content: Text(
+          'Are you sure you want to delete "${collection.name}"? '
+          'This action cannot be undone.'
+        ),
+        actions: [
+          TextButton(
+            child: const Text('Cancel'),
+            onPressed: () => Navigator.pop(context, false),
+          ),
+          TextButton(
+            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+            onPressed: () => Navigator.pop(context, true),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && context.mounted) {
+      try {
+        await service.deleteCollection(collection.id);
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Deleted "${collection.name}"')),
+          );
+        }
+      } catch (e) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Failed to delete collection')),
+          );
+        }
+      }
+    }
   }
 }
 
@@ -385,6 +638,148 @@ class _CollectionDetailScreen extends StatelessWidget {
 
   const _CollectionDetailScreen({required this.collection});
 
+  // Add these color constants
+  static final List<Color> _modernChartColors = [
+    const Color(0xFF5C6BC0), // Indigo
+    const Color(0xFF42A5F5), // Blue
+    const Color(0xFF26A69A), // Teal
+    const Color(0xFF66BB6A), // Green
+    const Color(0xFFFFCA28), // Amber
+  ];
+
+  Widget _buildSectionHeader(String title, {Color? color}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+      child: Row(
+        children: [
+          Container(
+            width: 4,
+            height: 24,
+            decoration: BoxDecoration(
+              color: color ?? _modernChartColors[0],
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMilestones(BuildContext context, Map<String, dynamic> stats) {
+    final nextMilestone = stats['nextMilestone'] as Map<String, dynamic>?;
+    final recentMilestones = stats['recentMilestones'] as List<dynamic>? ?? [];
+
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildSectionHeader('Collection Milestones', color: _modernChartColors[4]),
+          if (nextMilestone != null)
+            Container(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          const Text(
+                            'Next Milestone',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: _modernChartColors[4].withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              '${nextMilestone['current']}/${nextMilestone['target']}',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                                color: _modernChartColors[4],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      Text(
+                        '${(nextMilestone['progress'] * 100).toInt()}%',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Theme.of(context).textTheme.bodyMedium?.color,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  LinearProgressIndicator(
+                    value: nextMilestone['progress']?.toDouble() ?? 0,
+                    backgroundColor: Colors.grey[200],
+                    valueColor: AlwaysStoppedAnimation<Color>(_modernChartColors[4]),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    nextMilestone['description'] ?? '',
+                    style: const TextStyle(fontSize: 14),
+                  ),
+                ],
+              ),
+            ),
+          if (recentMilestones.isNotEmpty) ...[
+            const Padding(
+              padding: EdgeInsets.only(left: 16, top: 8),
+              child: Text(
+                'Recent Achievements',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            ...recentMilestones.map((milestone) => ListTile(
+              leading: Icon(
+                Icons.emoji_events,
+                color: _modernChartColors[4],
+                size: 20,
+              ),
+              title: Text(
+                milestone['title'] ?? '',
+                style: const TextStyle(fontSize: 13),
+              ),
+              subtitle: Text(
+                milestone['date'] ?? '',
+                style: const TextStyle(fontSize: 12),
+              ),
+              dense: true,
+            )).toList(),
+          ],
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final service = CollectionService();
@@ -477,6 +872,15 @@ class _CollectionDetailScreen extends StatelessWidget {
           _buildPriceHistoryChart(service),
           if (collection.notes.isNotEmpty) _buildNotes(),
           if (collection.tags.isNotEmpty) _buildTags(),
+          FutureBuilder<Map<String, dynamic>>(
+            future: service.getCollectionStats(),
+            builder: (context, snapshot) {
+              if (snapshot.hasData) {
+                return _buildMilestones(context, snapshot.data!);
+              }
+              return const SizedBox.shrink();
+            },
+          ),
           Expanded(
             child: _buildCardGrid(service),
           ),
@@ -962,5 +1366,310 @@ class _CollectionDetailScreen extends StatelessWidget {
         );
       }
     }
+  }
+}
+
+class CollectionDetailScreen extends StatelessWidget {
+  // Add color constants
+  static final List<Color> _colors = [
+    const Color(0xFF5C6BC0), // Indigo
+    const Color(0xFF42A5F5), // Blue
+    const Color(0xFF26A69A), // Teal
+    const Color(0xFF66BB6A), // Green
+    const Color(0xFFFFCA28), // Amber
+  ];
+
+  final CustomCollection collection;
+
+  const CollectionDetailScreen({
+    super.key,
+    required this.collection,
+  });
+
+  Widget _buildSectionHeader(String title, {Color? color}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+      child: Row(
+        children: [
+          Container(
+            width: 4,
+            height: 24,
+            decoration: BoxDecoration(
+              color: color ?? _colors[0],
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final service = CollectionService();
+    
+    return Scaffold(
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      appBar: AppBar(
+        backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
+        title: Text(
+          collection.name,
+          style: TextStyle(
+            color: Theme.of(context).appBarTheme.foregroundColor,
+          ),
+        ),
+        iconTheme: Theme.of(context).appBarTheme.iconTheme,
+      ),
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Collection Stats Header
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: isDark ? Theme.of(context).cardColor : Colors.white,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 4,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (collection.description.isNotEmpty) ...[
+                  Text(
+                    collection.description,
+                    style: TextStyle(
+                      color: isDark ? Colors.white70 : Colors.black87,
+                      fontSize: 14,
+                    ),
+                  ),
+                  const Divider(),
+                ],
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Collection Value',
+                          style: TextStyle(
+                            color: isDark ? Colors.white60 : Colors.grey[600],
+                            fontSize: 12,
+                          ),
+                        ),
+                        Text(
+                          '€${collection.totalValue?.toStringAsFixed(2) ?? '0.00'}',
+                          style: TextStyle(
+                            color: Colors.green[700],
+                            fontWeight: FontWeight.bold,
+                            fontSize: 24,
+                          ),
+                        ),
+                      ],
+                    ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(
+                          'Cards',
+                          style: TextStyle(
+                            color: isDark ? Colors.white60 : Colors.grey[600],
+                            fontSize: 12,
+                          ),
+                        ),
+                        Text(
+                          '${collection.cardIds.length}',
+                          style: TextStyle(
+                            color: isDark ? Colors.white : Colors.black87,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 24,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Most Valuable Card',
+                          style: TextStyle(
+                            color: isDark ? Colors.white60 : Colors.grey[600],
+                            fontSize: 12,
+                          ),
+                        ),
+                        StreamBuilder<QuerySnapshot>(
+                          stream: service.getCards(),
+                          builder: (context, snapshot) {
+                            if (!snapshot.hasData) return const Text('Loading...');
+                            
+                            final cards = snapshot.data?.docs
+                                .where((doc) => collection.cardIds.contains(doc.id))
+                                .map((doc) {
+                                  final data = doc.data() as Map<String, dynamic>;
+                                  return MapEntry(
+                                    data['name'] as String,
+                                    data['price']?.toDouble() ?? 0.0,
+                                  );
+                                })
+                                .toList() ?? [];
+
+                            if (cards.isEmpty) return const Text('No cards');
+
+                            cards.sort((a, b) => b.value.compareTo(a.value));
+                            final mostValuable = cards.first;
+
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  '€${mostValuable.value.toStringAsFixed(2)}',
+                                  style: TextStyle(
+                                    color: isDark ? Colors.blue[300] : Colors.blue[700],
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                  ),
+                                ),
+                                Text(
+                                  mostValuable.key,
+                                  style: TextStyle(
+                                    color: isDark ? Colors.white70 : Colors.grey[800],
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
+                            );
+                          },
+                        ),
+                      ],
+                    ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(
+                          'Created',
+                          style: TextStyle(
+                            color: isDark ? Colors.white60 : Colors.grey[600],
+                            fontSize: 12,
+                          ),
+                        ),
+                        Text(
+                          _formatDate(collection.createdAt),
+                          style: TextStyle(
+                            color: isDark ? Colors.white70 : Colors.grey[800],
+                            fontSize: 14,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                if (collection.tags.isNotEmpty) ...[
+                  const SizedBox(height: 16),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: collection.tags.map((tag) => Chip(
+                      label: Text(
+                        tag,
+                        style: TextStyle(
+                          color: isDark ? Colors.white : Colors.black87,
+                          fontSize: 12,
+                        ),
+                      ),
+                      backgroundColor: isDark 
+                          ? Colors.grey[800]
+                          : Colors.grey[200],
+                    )).toList(),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          // Card Grid
+          Expanded(
+            child: StreamBuilder<QuerySnapshot>(
+              stream: service.getCards(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
+                if (snapshot.hasError) {
+                  return Center(
+                    child: Text('Error: ${snapshot.error}'),
+                  );
+                }
+
+                final cards = snapshot.data?.docs
+                    .where((doc) => collection.cardIds.contains(doc.id))
+                    .map((doc) {
+                      final data = doc.data() as Map<String, dynamic>;
+                      return TcgCard(
+                        id: doc.id,
+                        name: data['name'] ?? '',
+                        imageUrl: data['imageUrl'] ?? '',
+                        setName: data['setName'] ?? '',
+                        rarity: data['rarity'] ?? '',
+                        price: data['price']?.toDouble(),
+                      );
+                    })
+                    .toList() ?? [];
+
+                if (cards.isEmpty) {
+                  return const Center(
+                    child: Text('No cards in this collection'),
+                  );
+                }
+
+                return GridView.builder(
+                  padding: const EdgeInsets.all(8),
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 4,
+                    childAspectRatio: 0.7,
+                    crossAxisSpacing: 8,
+                    mainAxisSpacing: 8,
+                  ),
+                  itemCount: cards.length,
+                  itemBuilder: (context, index) => CardItem(
+                    card: cards[index],
+                    docId: cards[index].id,
+                    onRemoved: () {
+                      service.removeCardsFromCollection(
+                        collection.id,
+                        [cards[index].id],
+                      );
+                    },
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatDate(DateTime date) {
+    return '${date.day}/${date.month}/${date.year}';
   }
 }

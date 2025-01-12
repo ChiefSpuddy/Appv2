@@ -56,21 +56,8 @@ class MyApp extends StatelessWidget {
             title: 'TCG Collection Manager',
             theme: themeProvider.lightTheme,
             darkTheme: themeProvider.darkTheme,
-            themeMode: themeProvider.isDarkMode ? ThemeMode.dark : ThemeMode.light,
-            home: StreamBuilder<User?>(
-              stream: FirebaseAuth.instance.authStateChanges(),
-              builder: (context, snapshot) {
-                // Show a loading indicator while checking auth state
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Scaffold(
-                    body: Center(child: CircularProgressIndicator()),
-                  );
-                }
-
-                // Return the HomeScreen regardless of auth state
-                return const HomeScreen();
-              },
-            ),
+            themeMode: themeProvider.themeMode,
+            home: const HomeScreen(),
           );
         },
       ),
