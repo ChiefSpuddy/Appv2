@@ -1,0 +1,37 @@
+{
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "card-app-95bcb",
+          "appId": "1:977857362801:android:c7b98ea7b44cca683954d0",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "card-app-95bcb",
+          "configurations": {
+            "android": "1:977857362801:android:c7b98ea7b44cca683954d0",
+            "ios": "1:977857362801:ios:108a81f2695554113954d0",
+            "macos": "1:977857362801:ios:108a81f2695554113954d0",
+            "web": "1:977857362801:web:3137453dd075d3cb3954d0",
+            "windows": "1:977857362801:web:efc12aadbeecfde63954d0"
+          }
+        }
+      }
+    }
+  },
+  "firestore": {
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  },
+  "hosting": {
+    "public": "build/web",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ]
+  }
+}

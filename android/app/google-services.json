@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "977857362801",
+    "project_id": "card-app-95bcb",
+    "storage_bucket": "card-app-95bcb.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:977857362801:android:c7b98ea7b44cca683954d0",
+        "android_client_info": {
+          "package_name": "com.example.my_flutter_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA9R3sLJdhikJVNk6ZlY4Yd7wW1JtOa0YI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

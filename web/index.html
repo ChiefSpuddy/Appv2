@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base href="$FLUTTER_BASE_HREF">
+  <meta charset="UTF-8">
+  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta name="description" content="A new Flutter project.">
+  <title>my_flutter_app</title>
+
+  <!-- Update CSP to be more permissive for development -->
+  <meta http-equiv="Content-Security-Policy" content="
+    default-src * 'self' 'unsafe-inline' 'unsafe-eval' data: blob:;
+    connect-src * 'self' ws: wss: http: https:;
+    script-src * 'self' 'unsafe-inline' 'unsafe-eval';
+    style-src * 'self' 'unsafe-inline';
+    img-src * data: blob: 'self' https: http: https://*.pokemontcg.io https://images.pokemontcg.io crossorigin;
+    font-src * 'self' data:;
+    form-action 'self';
+  ">
+  
+  <!-- Explicitly set renderer to CanvasKit -->
+  <meta name="flutter-renderer" content="canvaskit">
+  
+  <!-- iOS meta tags & icons -->
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="my_flutter_app">
+  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="favicon.png"/>
+
+  <link rel="manifest" href="manifest.json">
+
+  <!-- Add Google Fonts preconnect -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+  <script src="firebase-config.js"></script>
+
+  <script src="flutter.js" defer></script>
+</head>
+<body>
+  <div id="flutter_target"></div>
+  <script>
+    window.addEventListener('load', function() {
+      var loading = document.querySelector('#loading');
+      _flutter = {
+        loader: {
+          loadEntrypoint: async function(options) {
+            var entrypoint = await options.getEntrypoint();
+            return entrypoint.initializeEngine().then(function(appRunner) {
+              return appRunner.runApp();
+            });
+          }
+        }
+      };
+      var scriptLoaded = false;
+      var engineInitialized = false;
+      try {
+        if ("serviceWorker" in navigator) {
+          window.addEventListener("load", function () {
+            navigator.serviceWorker.register("/flutter_service_worker.js");
+          });
+        }
+        let scriptTag = document.createElement('script');
+        scriptTag.src = 'main.dart.js';
+        scriptTag.type = 'application/javascript';
+        document.body.append(scriptTag);
+      } catch (e) {
+        console.error('Error initializing Flutter app:', e);
+      }
+    });
+  </script>
+</body>
+</html>
