@@ -23,6 +23,10 @@ class _DexCollectionScreenState extends State<DexCollectionScreen> {
   List<String> _filteredPokemon = [];
   bool _isLoading = true;
   String _selectedGeneration = 'All';
+  String _selectedType = 'All';
+  String _collectionFilter = 'All'; // 'All', 'Collected', 'Missing'
+  String _sortBy = 'Number'; // 'Number', 'Name', 'Collection'
+  bool _sortAscending = true;
 
   @override
   void initState() {
@@ -42,9 +46,13 @@ class _DexCollectionScreenState extends State<DexCollectionScreen> {
     }
   }
 
-  void _filterPokemon(String query) {
-    setState(() {
-      var filtered = _allPokemon;
+  Future<void> _filterPokemon(String query) async {
+    if (!mounted) return;
+    
+    setState(() => _isLoading = true);
+    
+    try {
+      var filtered = List<String>.from(_allPokemon);
       
       // Apply generation filter
       if (_selectedGeneration != 'All') {
@@ -60,9 +68,73 @@ class _DexCollectionScreenState extends State<DexCollectionScreen> {
             .where((name) => name.toLowerCase().contains(query.toLowerCase()))
             .toList();
       }
+
+      // Apply type filter - Get Pokemon by type first if type filter is active
+      if (_selectedType != 'All') {
+        final typeFiltered = await _apiService.getPokemonByType(_selectedType);
+        filtered = filtered.where((name) => 
+          typeFiltered.any((typeName) => 
+            typeName.toLowerCase() == name.toLowerCase()
+          )
+        ).toList();
+      }
+
+      // Apply collection filter more efficiently
+      if (_collectionFilter != 'All') {
+        final List<String> collectionFiltered = [];
+        
+        // Get all collection stats at once
+        final futures = filtered.map((name) => _pokemonService.getPokemonStats(name));
+        final results = await Future.wait(futures);
+        
+        for (var i = 0; i < filtered.length; i++) {
+          final stats = results[i];
+          final cardCount = (stats['cardCount'] as num?)?.toInt() ?? 0;
+          final hasCards = cardCount > 0;
+          
+          if ((_collectionFilter == 'Collected' && hasCards) ||
+              (_collectionFilter == 'Missing' && !hasCards)) {
+            collectionFiltered.add(filtered[i]);
+          }
+        }
+        
+        filtered = collectionFiltered;
+      }
+
+      // Apply sorting with safe index lookup
+      filtered.sort((a, b) {
+        if (_sortBy == 'Number') {
+          final numA = _getDexNumber(a);
+          final numB = _getDexNumber(b);
+          return _sortAscending ? numA.compareTo(numB) : numB.compareTo(numA);
+        } else if (_sortBy == 'Name') {
+          return _sortAscending ? a.compareTo(b) : b.compareTo(a);
+        } else { // Collection
+          return 0; // Will be implemented with actual collection count
+        }
+      });
       
-      _filteredPokemon = filtered;
-    });
+      if (mounted) {
+        setState(() {
+          _filteredPokemon = filtered;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      print('Error filtering pokemon: $e');
+      if (mounted) {
+        setState(() {
+          _filteredPokemon = _allPokemon; // Fallback to showing all Pokemon
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  // Helper method to safely get dex number
+  int _getDexNumber(String pokemonName) {
+    final index = _allPokemon.indexOf(pokemonName);
+    return index >= 0 ? index + 1 : 999999; // Put unknown Pokemon at the end
   }
 
   Widget _buildFilterButton(String label, IconData icon, {
@@ -117,7 +189,7 @@ class _DexCollectionScreenState extends State<DexCollectionScreen> {
   }
 
   Widget _buildPokemonTile(BuildContext context, int index, bool isDark) {
-    final dexNumber = _allPokemon.indexOf(_filteredPokemon[index]) + 1;
+    final dexNumber = _getDexNumber(_filteredPokemon[index]);
     final generation = GenerationService.getGeneration(dexNumber);
     final genColor = GenerationService.getGenerationColor(generation);
     
@@ -303,6 +375,365 @@ class _DexCollectionScreenState extends State<DexCollectionScreen> {
     });
   }
 
+  IconData _getTypeIcon(String type) {
+    switch (type.toLowerCase()) {
+      case 'fire':
+        return Icons.local_fire_department;
+      case 'water':
+        return Icons.water_drop;
+      case 'grass':
+        return Icons.grass;
+      case 'electric':
+        return Icons.electric_bolt;
+      case 'psychic':
+        return Icons.psychology;
+      case 'fighting':
+        return Icons.sports_mma;
+      case 'ground':
+        return Icons.landscape;
+      case 'rock':
+        return Icons.terrain;
+      case 'flying':
+        return Icons.air;
+      case 'bug':
+        return Icons.bug_report;
+      case 'poison':
+        return Icons.science;
+      case 'normal':
+        return Icons.circle_outlined;
+      case 'ghost':
+        return Icons.nights_stay;
+      case 'ice':
+        return Icons.ac_unit;
+      case 'dragon':
+        return Icons.auto_awesome;
+      case 'dark':
+        return Icons.dark_mode;
+      case 'steel':
+        return Icons.shield;
+      case 'fairy':
+        return Icons.auto_fix_high;
+      default:
+        return Icons.catching_pokemon;
+    }
+  }
+
+  Widget _buildActiveFilters() {
+    if (_selectedType == 'All' && _collectionFilter == 'All' && _sortBy == 'Number') {
+      return const SizedBox.shrink();
+    }
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Wrap(
+        spacing: 8,
+        children: [
+          if (_selectedType != 'All')
+            Chip(
+              avatar: Icon(_getTypeIcon(_selectedType), size: 16),
+              label: Text(_selectedType),
+              onDeleted: () => setState(() {
+                _selectedType = 'All';
+                _filterPokemon(_searchController.text);
+              }),
+            ),
+          if (_collectionFilter != 'All')
+            Chip(
+              avatar: const Icon(Icons.folder, size: 16),
+              label: Text(_collectionFilter),
+              onDeleted: () => setState(() {
+                _collectionFilter = 'All';
+                _filterPokemon(_searchController.text);
+              }),
+            ),
+          if (_sortBy != 'Number' || !_sortAscending)
+            Chip(
+              avatar: Icon(
+                _sortAscending ? Icons.arrow_upward : Icons.arrow_downward,
+                size: 16,
+              ),
+              label: Text('Sort: $_sortBy'),
+              onDeleted: () => setState(() {
+                _sortBy = 'Number';
+                _sortAscending = true;
+                _filterPokemon(_searchController.text);
+              }),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFilterMenu() {
+    return PopupMenuButton<String>(
+      tooltip: 'Sort and Filter',
+      icon: Stack(
+        children: [
+          const Icon(Icons.tune),
+          if (_selectedType != 'All' || _collectionFilter != 'All' || _sortBy != 'Number')
+            Positioned(
+              right: 0,
+              top: 0,
+              child: Container(
+                padding: const EdgeInsets.all(2),
+                decoration: const BoxDecoration(
+                  color: Colors.red,
+                  shape: BoxShape.circle,
+                ),
+                constraints: const BoxConstraints(
+                  minWidth: 12,
+                  minHeight: 12,
+                ),
+              ),
+            ),
+        ],
+      ),
+      onSelected: (value) {
+        // Handle filter selection
+        final parts = value.split(':');
+        final category = parts[0];
+        final option = parts[1];
+
+        setState(() {
+          switch (category) {
+            case 'type':
+              _selectedType = option;
+              break;
+            case 'collection':
+              _collectionFilter = option;
+              break;
+            case 'sort':
+              if (_sortBy == option) {
+                _sortAscending = !_sortAscending;
+              } else {
+                _sortBy = option;
+                _sortAscending = true;
+              }
+              break;
+          }
+          _filterPokemon(_searchController.text);
+        });
+      },
+      itemBuilder: (context) => [
+        PopupMenuItem(
+          child: ListTile(
+            leading: const Icon(Icons.catching_pokemon),
+            title: const Text('Pokémon Types'),
+            trailing: const Icon(Icons.arrow_right),
+            contentPadding: EdgeInsets.zero,
+            onTap: () {
+              Navigator.pop(context);
+              _showTypeSelector(context);
+            },
+          ),
+        ),
+        const PopupMenuDivider(),
+        const PopupMenuItem(
+          enabled: false,
+          child: Text(
+            'Collection Status',
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
+        ),
+        ...['All', 'Collected', 'Missing'].map((status) => PopupMenuItem(
+          value: 'collection:$status',
+          child: Row(
+            children: [
+              Icon(
+                status == 'Collected' ? Icons.check_circle
+                : status == 'Missing' ? Icons.remove_circle
+                : Icons.all_inclusive,
+                size: 20,
+              ),
+              const SizedBox(width: 8),
+              Text(status),
+              if (_collectionFilter == status)
+                const Spacer(),
+              if (_collectionFilter == status)
+                const Icon(Icons.check, size: 20),
+            ],
+          ),
+        )),
+        const PopupMenuDivider(),
+        const PopupMenuItem(
+          enabled: false,
+          child: Text(
+            'Sort By',
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
+        ),
+        ...['Number', 'Name', 'Collection'].map((sort) => PopupMenuItem(
+          value: 'sort:$sort',
+          child: Row(
+            children: [
+              Icon(
+                sort == 'Number' ? Icons.tag
+                : sort == 'Name' ? Icons.sort_by_alpha
+                : Icons.style,
+                size: 20,
+              ),
+              const SizedBox(width: 8),
+              Text(sort),
+              if (_sortBy == sort)
+                const Spacer(),
+              if (_sortBy == sort)
+                Icon(
+                  _sortAscending
+                      ? Icons.arrow_upward
+                      : Icons.arrow_downward,
+                  size: 20,
+                ),
+            ],
+          ),
+        )),
+      ],
+    );
+  }
+
+  void _showTypeSelector(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ListTile(
+            title: const Text(
+              'Select Type',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            trailing: IconButton(
+              icon: const Icon(Icons.close),
+              onPressed: () => Navigator.pop(context),
+            ),
+          ),
+          Expanded(
+            child: GridView.count(
+              crossAxisCount: 3,
+              padding: const EdgeInsets.all(16),
+              mainAxisSpacing: 8,
+              crossAxisSpacing: 8,
+              children: [
+                _buildTypeButton('All'),
+                ...[
+                  'Fire', 'Water', 'Grass', 'Electric', 'Psychic',
+                  'Fighting', 'Ground', 'Rock', 'Flying', 'Bug',
+                  'Poison', 'Normal', 'Ghost', 'Ice', 'Dragon',
+                  'Dark', 'Steel', 'Fairy'
+                ].map((type) => _buildTypeButton(type)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTypeButton(String type) {
+    final isSelected = _selectedType == type;
+    final typeColor = type == 'All' ? Colors.grey : _getTypeColor(type);
+    final gradientColors = _getTypeGradient(type);
+    
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () {
+          setState(() {
+            _selectedType = type;
+            _filterPokemon(_searchController.text);
+          });
+          Navigator.pop(context);
+        },
+        borderRadius: BorderRadius.circular(8),
+        child: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: gradientColors,
+            ),
+            border: Border.all(
+              color: isSelected ? Colors.white : Colors.transparent,
+              width: 2,
+            ),
+            borderRadius: BorderRadius.circular(8),
+            boxShadow: [
+              if (isSelected)
+                BoxShadow(
+                  color: typeColor.withOpacity(0.5),
+                  blurRadius: 8,
+                  spreadRadius: 1,
+                ),
+            ],
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                type == 'All' ? Icons.all_inclusive : _getTypeIcon(type),
+                color: Colors.white,
+                size: 24,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                type,
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: isSelected ? FontWeight.bold : null,
+                  shadows: [
+                    Shadow(
+                      offset: const Offset(1, 1),
+                      blurRadius: 2,
+                      color: Colors.black.withOpacity(0.5),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  List<Color> _getTypeGradient(String type) {
+    final baseColor = type == 'All' ? Colors.grey : _getTypeColor(type);
+    final gradients = {
+      'fire': [const Color(0xFFF08030), const Color(0xFFDD6610)],
+      'water': [const Color(0xFF6890F0), const Color(0xFF386CEB)],
+      'grass': [const Color(0xFF78C850), const Color(0xFF5CA935)],
+      'electric': [const Color(0xFFF8D030), const Color(0xFFF0C000)],
+      'psychic': [const Color(0xFFF85888), const Color(0xFFEB386E)],
+      'fighting': [const Color(0xFFC03028), const Color(0xFFA52A2A)],
+      'ground': [const Color(0xFFE0C068), const Color(0xFFC6A048)],
+      'rock': [const Color(0xFFB8A038), const Color(0xFF8B7355)],
+      'flying': [const Color(0xFFA890F0), const Color(0xFF9180C4)],
+      'bug': [const Color(0xFFA8B820), const Color(0xFF8B9A1B)],
+      'poison': [const Color(0xFFA040A0), const Color(0xFF682A68)],
+      'normal': [const Color(0xFFA8A878), const Color(0xFF6D6D4E)],
+      'ghost': [const Color(0xFF705898), const Color(0xFF493963)],
+      'ice': [const Color(0xFF98D8D8), const Color(0xFF69C6C6)],
+      'dragon': [const Color(0xFF7038F8), const Color(0xFF4C08EF)],
+      'dark': [const Color(0xFF705848), const Color(0xFF49392F)],
+      'steel': [const Color(0xFFB8B8D0), const Color(0xFF787887)],
+      'fairy': [const Color(0xFFEE99AC), const Color(0xFFF4BDC9)],
+    };
+
+    return gradients[type.toLowerCase()] ?? [
+      baseColor,
+      baseColor.withOpacity(0.7),
+    ];
+  }
+
+  Color _getTypeColor(String type) {
+    final colors = {
+      'normal': const Color(0xFFA8A878),
+      'fire': const Color(0xFFF08030),
+      'water': const Color(0xFF6890F0),
+      // ...existing type colors...
+    };
+    return colors[type.toLowerCase()] ?? Colors.grey;
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -310,6 +741,9 @@ class _DexCollectionScreenState extends State<DexCollectionScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Dex Collection'),
+        actions: [
+          _buildFilterMenu(),
+        ],
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(48),
           child: Container(
@@ -370,6 +804,7 @@ class _DexCollectionScreenState extends State<DexCollectionScreen> {
               onChanged: _filterPokemon,
             ),
           ),
+          _buildActiveFilters(),
           Expanded(
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
@@ -404,7 +839,10 @@ class _DexCollectionScreenState extends State<DexCollectionScreen> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => PokemonDetailScreen(pokemonName: pokemonName),
+        builder: (context) => PokemonDetailScreen(
+          pokemonName: pokemonName,
+          heroTag: 'pokemon_sprite_$pokemonName',
+        ),
       ),
     );
   }

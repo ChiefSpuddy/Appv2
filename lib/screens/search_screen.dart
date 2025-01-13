@@ -14,14 +14,19 @@ import '../services/auth_service.dart';
 import '../providers/theme_provider.dart';
 
 class SearchScreen extends StatefulWidget {
-  const SearchScreen({super.key});
+  final String? initialQuery;
+
+  const SearchScreen({
+    super.key,
+    this.initialQuery,
+  });
 
   @override
   State<SearchScreen> createState() => _SearchScreenState();
 }
 
 class _SearchScreenState extends State<SearchScreen> {
-  final _searchController = TextEditingController();
+  late final TextEditingController _searchController;
   String _sortBy = 'name:asc'; // default sort
   bool _showRareOnly = false;
   final _apiService = ApiService();
@@ -43,9 +48,14 @@ class _SearchScreenState extends State<SearchScreen> {
   @override
   void initState() {
     super.initState();
+    _searchController = TextEditingController(text: widget.initialQuery);
     _searchFocusNode = FocusNode();
     _loadPokemonNames();
     _scrollController.addListener(_onScroll);
+    if (widget.initialQuery != null) {
+      // Trigger initial search if query provided
+      _performSearch(widget.initialQuery!);
+    }
   }
 
   Future<void> _loadPokemonNames() async {

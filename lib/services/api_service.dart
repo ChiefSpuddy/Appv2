@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math';
 import 'package:http/http.dart' as http;
 import '../models/card_model.dart';
 
@@ -110,6 +111,44 @@ class ApiService {
     } catch (e) {
       print('Error searching cards: $e');
       return {'cards': [], 'totalCount': 0};
+    }
+  }
+
+  Future<Map<String, dynamic>?> getCardPricing(String cardId) async {
+    try {
+      final url = Uri.parse('$_baseUrl/cards/$cardId');
+      final response = await http.get(url, headers: _headers);
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body)['data'];
+        final cardmarket = data['cardmarket'];
+        
+        if (cardmarket == null) return null;
+
+        // Get all available price data
+        return {
+          'prices': {
+            'averageSellPrice': cardmarket['prices']?['averageSellPrice'],
+            'lowPrice': cardmarket['prices']?['lowPrice'],
+            'trendPrice': cardmarket['prices']?['trendPrice'],
+            'germanProLow': cardmarket['prices']?['germanProLow'],
+            'suggestedPrice': cardmarket['prices']?['suggestedPrice'],
+            'reverseHoloTrend': cardmarket['prices']?['reverseHoloTrend'],
+            'reverseHoloLow': cardmarket['prices']?['reverseHoloLow'],
+            'reverseHoloSell': cardmarket['prices']?['reverseHoloSell'],
+            'avg1': cardmarket['prices']?['avg1'],
+            'avg7': cardmarket['prices']?['avg7'],
+            'avg30': cardmarket['prices']?['avg30'],
+          },
+          'updatedAt': cardmarket['updatedAt'],
+          'url': cardmarket['url'],
+          'lastEdited': cardmarket['lastEdited'],
+        };
+      }
+      return null;
+    } catch (e) {
+      print('Error fetching card pricing: $e');
+      return null;
     }
   }
 

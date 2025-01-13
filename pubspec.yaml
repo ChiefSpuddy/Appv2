@@ -11,6 +11,7 @@ dependencies:
   flutter:
     sdk: flutter
   cupertino_icons: ^1.0.6
+  intl: ^0.18.0  # For date formatting
   
   # State Management
   provider: ^6.1.1
@@ -29,6 +30,9 @@ dependencies:
   # Networking & Data
   http: ^1.2.0  # Make sure this is included
   crypto: ^3.0.3
+
+  # URL Launcher
+  url_launcher: ^6.2.5
 
 dev_dependencies:
   flutter_test:

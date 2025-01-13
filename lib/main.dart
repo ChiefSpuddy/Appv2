@@ -60,6 +60,12 @@ class MyApp extends StatelessWidget {
             darkTheme: themeProvider.darkTheme,
             themeMode: themeProvider.themeMode,
             home: const HomeScreen(),
+            routes: {
+              '/search': (context) => SearchScreen(
+                initialQuery: ModalRoute.of(context)?.settings.arguments as String?,
+              ),
+              // ...other existing routes...
+            },
           );
         },
       ),
