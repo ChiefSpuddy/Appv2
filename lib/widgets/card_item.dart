@@ -115,159 +115,117 @@ class _CardItemState extends State<CardItem> with SingleTickerProviderStateMixin
               scale: _scaleAnimation.value,
               child: child,
             ),
-            child: SizedBox(
-              width: cardWidth,
-              child: Hero(
-                tag: 'card_${widget.card.id}',
-                child: Card(
-                  clipBehavior: Clip.antiAlias,
-                  elevation: _isPressed ? 1 : (isDark ? 4 : 3),
-                  shadowColor: isDark 
-                      ? Colors.black.withOpacity(_isPressed ? 0.2 : 0.4)
-                      : Colors.black.withOpacity(_isPressed ? 0.1 : 0.2),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+            child: Card(
+              clipBehavior: Clip.antiAlias,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Expanded(
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        Image.network(
+                          widget.card.imageUrl,
+                          fit: BoxFit.contain,
+                          headers: const {
+                            'Access-Control-Allow-Origin': '*',
+                            'Referrer-Policy': 'no-referrer',
+                          },
+                          loadingBuilder: (context, child, loadingProgress) {
+                            if (loadingProgress == null) return child;
+                            return Shimmer.fromColors(
+                              baseColor: Colors.grey[300]!,
+                              highlightColor: Colors.grey[100]!,
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
+                            );
+                          },
+                          errorBuilder: (context, error, stackTrace) {
+                            return Center(
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.broken_image_rounded,
+                                    size: 24,
+                                    color: Theme.of(context).colorScheme.error,
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'Image Error',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Theme.of(context).colorScheme.error,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                        ),
+                        if (widget.card.price != null)
+                          Positioned(
+                            bottom: 0,
+                            right: 0,
+                            left: 0,
+                            child: Container(
+                              color: isDark 
+                                ? Colors.black.withOpacity(0.7)
+                                : Colors.white.withOpacity(0.9),
+                              padding: const EdgeInsets.symmetric(
+                                vertical: 4,
+                                horizontal: 8,
+                              ),
+                              child: Text(
+                                '€${widget.card.price!.toStringAsFixed(2)}',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                  color: isDark 
+                                    ? Colors.green[300] 
+                                    : Colors.green[700],
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
                   ),
-                  child: InkWell(
-                    onTap: () {
-                      // TODO: Navigate to detail view with hero animation
-                    },
-                    onLongPress: widget.docId != null 
-                        ? () => _confirmDelete(context) 
-                        : null,
+                  Container(
+                    padding: const EdgeInsets.all(8),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Expanded(
-                          child: Container(
-                            decoration: const BoxDecoration(
-                              color: Colors.transparent,
-                            ),
-                            child: Stack(
-                              fit: StackFit.expand,
-                              children: [
-                                Center(
-                                  child: AspectRatio(
-                                    aspectRatio: 2.5 / 3.5,
-                                    child: Padding(
-                                      padding: const EdgeInsets.all(4.0),
-                                      child: _buildCardImage(),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
+                        Text(
+                          widget.card.name,
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: isDark ? Colors.white : Colors.black87,
                           ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                '${widget.card.name} ${widget.card.setNumber.isNotEmpty ? "#${widget.card.setNumber}" : ""}',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 13,
-                                  color: isDark ? Colors.white : Colors.black87,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              const SizedBox(height: 2),
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: Text(
-                                      widget.card.setName,
-                                      style: TextStyle(
-                                        fontSize: 11,
-                                        color: isDark ? Colors.white60 : Colors.grey[600],
-                                      ),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                  if (widget.card.price != null)
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 6,
-                                        vertical: 2,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: isDark 
-                                            ? Colors.green[900]?.withOpacity(0.3) 
-                                            : Colors.green[50],
-                                        borderRadius: BorderRadius.circular(4),
-                                      ),
-                                      child: Text(
-                                        '€${widget.card.price!.toStringAsFixed(2)}',
-                                        style: TextStyle(
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.bold,
-                                          color: isDark 
-                                              ? Colors.green[300] 
-                                              : Colors.green[700],
-                                        ),
-                                      ),
-                                    ),
-                                ],
-                              ),
-                            ],
+                        const SizedBox(height: 2),
+                        Text(
+                          widget.card.setName,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: isDark ? Colors.white60 : Colors.grey[600],
                           ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ],
                     ),
                   ),
-                ),
+                ],
               ),
             ),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildCardImage() {
-    return Image.network(
-      widget.card.imageUrl,
-      fit: BoxFit.contain,
-      headers: const {
-        'Access-Control-Allow-Origin': '*',
-        'Referrer-Policy': 'no-referrer',
-      },
-      loadingBuilder: (context, child, loadingProgress) {
-        if (loadingProgress == null) return child;
-        return Shimmer.fromColors(
-          baseColor: Colors.grey[300]!,
-          highlightColor: Colors.grey[100]!,
-          child: Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(8),
-            ),
-          ),
-        );
-      },
-      errorBuilder: (context, error, stackTrace) {
-        return Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                Icons.broken_image_rounded,
-                size: 24,
-                color: Theme.of(context).colorScheme.error,
-              ),
-              const SizedBox(height: 4),
-              Text(
-                'Image Error',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Theme.of(context).colorScheme.error,
-                ),
-              ),
-            ],
           ),
         );
       },

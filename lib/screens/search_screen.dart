@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';  // Add this import
 import 'package:provider/provider.dart';
+import 'package:flutter/material.dart';
 import '../models/card_model.dart';
 import '../services/api_service.dart';
 import '../services/search_history_service.dart';  // Add this import
@@ -21,7 +22,7 @@ class SearchScreen extends StatefulWidget {
 
 class _SearchScreenState extends State<SearchScreen> {
   final _searchController = TextEditingController();
-  String _sortBy = 'name';
+  String _sortBy = 'name:asc'; // default sort
   bool _showRareOnly = false;
   final _apiService = ApiService();
   final _pokemonService = PokemonNamesService();
@@ -37,6 +38,7 @@ class _SearchScreenState extends State<SearchScreen> {
   int _pageSize = ApiService.defaultPageSize;
   int _totalResults = 0;
   final ScrollController _scrollController = ScrollController();
+  bool _showFilterPanel = false;
 
   @override
   void initState() {
@@ -69,16 +71,7 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   void _onSearchChanged(String query) {
-    if (_debounce?.isActive ?? false) _debounce?.cancel();
-
-    _debounce = Timer(const Duration(milliseconds: 500), () {
-      if (query.isNotEmpty) {
-        _currentPage = 1; // Reset to first page for new searches
-        _performSearch(query);
-      }
-    });
-
-    // Update suggestions
+    // Only update suggestions, don't trigger search
     if (mounted) {
       setState(() {
         if (query.length >= 2) {
@@ -384,67 +377,159 @@ class _SearchScreenState extends State<SearchScreen> {
     );
   }
 
+  // Helper method to get sort icon
+  Widget _getSortIcon() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final color = isDark ? Colors.grey[400] : Colors.grey[600];
+    
+    switch (_sortBy) {
+      case 'price:asc':
+        return Icon(Icons.arrow_upward, color: color);
+      case 'price:desc':
+        return Icon(Icons.arrow_downward, color: color);
+      case 'name:asc':
+        return Icon(Icons.sort_by_alpha, color: color);
+      case 'name:desc':
+        return Icon(Icons.sort_by_alpha_rounded, color: color);
+      case 'number:asc':
+        return Icon(Icons.format_list_numbered, color: color);
+      case 'number:desc':
+        return Icon(Icons.format_list_numbered_rtl, color: color);
+      case 'date:asc':
+        return Icon(Icons.calendar_today, color: color);
+      case 'date:desc':
+        return Icon(Icons.calendar_today_outlined, color: color);
+      default:
+        return Icon(Icons.sort, color: color);
+    }
+  }
+
+  // Helper method to get sort text
+  String _getSortText() {
+    switch (_sortBy) {
+      case 'price:asc':
+        return 'Price: Low to High';
+      case 'price:desc':
+        return 'Price: High to Low';
+      case 'name:asc':
+        return 'Name: A to Z';
+      case 'name:desc':
+        return 'Name: Z to A';
+      case 'number:asc':
+        return 'Number: Low to High';
+      case 'number:desc':
+        return 'Number: High to Low';
+      case 'date:asc':
+        return 'Release: Oldest First';
+      case 'date:desc':
+        return 'Release: Newest First';
+      default:
+        return 'Sort By';
+    }
+  }
+
   Widget _buildSearchBar() {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: TextField(
-        controller: _searchController,
-        focusNode: _searchFocusNode,
-        decoration: InputDecoration(
-          hintText: 'Search cards by name...',
-          filled: true,
-          fillColor: isDark ? Colors.grey[900] : Colors.grey[200], // Made lighter background darker
-          prefixIcon: Icon(
-            Icons.search,
-            color: isDark ? Colors.grey[400] : Colors.grey[600], // Darker icon in light mode
-          ),
-          suffixIcon: _searchController.text.isNotEmpty
-              ? IconButton(
-                  icon: Icon(
-                    Icons.clear,
-                    color: isDark ? Colors.grey[400] : Colors.grey[600], // Darker icon in light mode
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _searchController,
+                  focusNode: _searchFocusNode,
+                  decoration: InputDecoration(
+                    hintText: 'Search Pokémon cards...',
+                    filled: true,
+                    fillColor: isDark ? Colors.grey[900] : Colors.grey[200],
+                    prefixIcon: Icon(
+                      Icons.search,
+                      color: isDark ? Colors.grey[400] : Colors.grey[600],
+                    ),
+                    suffixIcon: _searchController.text.isNotEmpty
+                        ? IconButton(
+                            icon: Icon(
+                              Icons.clear,
+                              color: isDark ? Colors.grey[400] : Colors.grey[600],
+                            ),
+                            onPressed: _clearSearch,
+                          )
+                        : null,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(
+                        color: isDark ? Colors.transparent : Colors.grey[300]!,
+                      ),
+                    ),
                   ),
-                  onPressed: _clearSearch,
-                )
-              : null,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide( // Add subtle border in light mode
-              color: isDark ? Colors.transparent : Colors.grey[300]!,
-              width: 1,
-            ),
-          ),
-          enabledBorder: OutlineInputBorder( // Add subtle border in light mode
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(
-              color: isDark ? Colors.transparent : Colors.grey[300]!,
-              width: 1,
-            ),
-          ),
-          focusedBorder: OutlineInputBorder( // Add subtle border in light mode
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(
-              color: isDark ? Colors.grey[700]! : Colors.grey[400]!,
-              width: 1.5,
-            ),
-          ),
-          hintStyle: TextStyle(
-            color: isDark ? Colors.grey[500] : Colors.grey[600], // Darker hint text in light mode
+                  onChanged: _onSearchChanged,
+                  onSubmitted: (value) {
+                    if (value.isNotEmpty) {
+                      _currentPage = 1;
+                      _performSearch(value);
+                    }
+                  },
+                ),
+              ),
+              const SizedBox(width: 8),
+              // Add Sort Button
+              IconButton(
+                icon: _getSortIcon(),
+                tooltip: _getSortText(),
+                onPressed: () => _showSortOptions(context),
+              ),
+              // Updated Filter Button with Badge
+              Badge(
+                isLabelVisible: _showRareOnly,
+                backgroundColor: Theme.of(context).primaryColor,
+                child: IconButton(
+                  icon: const Icon(Icons.filter_list),
+                  tooltip: _showRareOnly ? 'Showing Rare Cards Only' : 'Filter Cards',
+                  onPressed: () {
+                    setState(() => _showRareOnly = !_showRareOnly);
+                    if (_searchController.text.isNotEmpty) {
+                      _currentPage = 1;
+                      _performSearch(_searchController.text);
+                    }
+                    // Show filter status
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(_showRareOnly 
+                          ? 'Showing rare cards only' 
+                          : 'Showing all cards'),
+                        duration: const Duration(seconds: 2),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
           ),
         ),
-        style: TextStyle( // Add explicit text style
-          color: isDark ? Colors.grey[200] : Colors.grey[900],
-        ),
-        onChanged: _onSearchChanged,
-        onSubmitted: (value) {
-          if (value.isNotEmpty) {
-            _currentPage = 1;
-            _performSearch(value);
-          }
-        },
-      ),
+        // Add Active Filters Indicator
+        if (_showRareOnly)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              children: [
+                Chip(
+                  label: const Text('Rare Cards Only'),
+                  onDeleted: () {
+                    setState(() => _showRareOnly = false);
+                    if (_searchController.text.isNotEmpty) {
+                      _currentPage = 1;
+                      _performSearch(_searchController.text);
+                    }
+                  },
+                ),
+              ],
+            ),
+          ),
+      ],
     );
   }
 
@@ -492,32 +577,68 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   Widget _buildPageSizeSelector() {
-    return PopupMenuButton<int>(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text('$_pageSize per page'),
-            const Icon(Icons.arrow_drop_down),
-          ],
-        ),
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      decoration: BoxDecoration(
+        color: isDark ? Colors.grey[900] : Colors.grey[200],
+        borderRadius: BorderRadius.circular(8),
       ),
-      itemBuilder: (context) => ApiService.pageSizes.map((size) =>  // Now this will work
-        PopupMenuItem(
-          value: size,
-          child: Text('$size per page'),
-        ),
-      ).toList(),
-      onSelected: (value) {
-        setState(() {
-          _pageSize = value;
-          _currentPage = 1;
-          if (_searchController.text.isNotEmpty) {
-            _performSearch(_searchController.text);
-          }
-        });
-      },
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            '${_totalResults} cards found',
+            style: TextStyle(
+              color: isDark ? Colors.grey[300] : Colors.grey[700],
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          Container(
+            margin: const EdgeInsets.symmetric(horizontal: 8),
+            width: 4,
+            height: 4,
+            decoration: BoxDecoration(
+              color: isDark ? Colors.grey[700] : Colors.grey[400],
+              shape: BoxShape.circle,
+            ),
+          ),
+          PopupMenuButton<int>(
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  '$_pageSize per page',
+                  style: TextStyle(
+                    color: isDark ? Colors.grey[300] : Colors.grey[700],
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                Icon(
+                  Icons.arrow_drop_down,
+                  color: isDark ? Colors.grey[400] : Colors.grey[600],
+                ),
+              ],
+            ),
+            itemBuilder: (context) => ApiService.pageSizes.map((size) =>
+              PopupMenuItem(
+                value: size,
+                child: Text('$size per page'),
+              ),
+            ).toList(),
+            onSelected: (value) {
+              setState(() {
+                _pageSize = value;
+                _currentPage = 1;
+                if (_searchController.text.isNotEmpty) {
+                  _performSearch(_searchController.text);
+                }
+              });
+            },
+          ),
+        ],
+      ),
     );
   }
 
@@ -541,8 +662,8 @@ class _SearchScreenState extends State<SearchScreen> {
               _searchFocusNode.unfocus();
             }
           },
-          child: Container(
-            color: Theme.of(context).scaffoldBackgroundColor, // Light background
+          child: Container(  // Replace Stack with Container
+            color: Theme.of(context).scaffoldBackgroundColor,
             child: Column(
               children: [
                 AppBar(
@@ -667,20 +788,6 @@ class _SearchScreenState extends State<SearchScreen> {
                   child: Column(
                     children: [
                       _buildSearchBar(),
-                      if (_cards != null && _totalResults > 0)
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                '${_totalResults} cards found',
-                                style: Theme.of(context).textTheme.bodySmall,
-                              ),
-                              _buildPageSizeSelector(),
-                            ],
-                          ),
-                        ),
                       Expanded(
                         child: _isLoading && _currentPage == 1
                             ? const Center(child: CircularProgressIndicator())
@@ -738,13 +845,13 @@ class _SearchScreenState extends State<SearchScreen> {
     }
 
     return GridView.builder(
-      controller: _scrollController,  // Add scroll controller
-      padding: const EdgeInsets.all(8),
+      controller: _scrollController,
+      padding: const EdgeInsets.all(8),  // Reduced padding from 12 to 8
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 5,
-        childAspectRatio: 0.65,
-        crossAxisSpacing: 8,
-        mainAxisSpacing: 8,
+        crossAxisCount: 4,
+        childAspectRatio: 0.72,  // Slightly adjusted for better card proportions
+        crossAxisSpacing: 8,     // Reduced spacing from 12 to 8
+        mainAxisSpacing: 8,      // Reduced spacing from 12 to 8
       ),
       itemCount: _cards!.length + (_isLoading ? 1 : 0),
       itemBuilder: (context, index) {
@@ -805,5 +912,81 @@ class _SearchScreenState extends State<SearchScreen> {
         const SnackBar(content: Text('Failed to add card')),
       );
     }
+  }
+
+  Widget _buildSortOption(String label, String value, IconData icon) {
+    return ListTile(
+      leading: Icon(icon),
+      title: Text(label),
+      selected: _sortBy == value,
+      onTap: () {
+        setState(() => _sortBy = value);
+        if (_cards != null) {
+          _performSearch(_searchController.text);
+        }
+        Navigator.pop(context);
+      },
+    );
+  }
+
+  void _showSortOptions(BuildContext context) {
+    // Unfocus any text field before showing bottom sheet
+    FocusScope.of(context).unfocus();
+    
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (BuildContext context) {
+        return DraggableScrollableSheet(
+          initialChildSize: 0.4,
+          minChildSize: 0.2,
+          maxChildSize: 0.75,
+          expand: false,
+          builder: (context, scrollController) {
+            return SafeArea(
+              child: SingleChildScrollView(
+                controller: scrollController,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Add handle for dragging
+                    Container(
+                      margin: const EdgeInsets.symmetric(vertical: 8),
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.grey[300],
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                    ListTile(
+                      title: const Text(
+                        'Sort By',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      trailing: TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text('Done'),
+                      ),
+                    ),
+                    const Divider(height: 0),
+                    _buildSortOption('Name (A-Z)', 'name:asc', Icons.sort_by_alpha),
+                    _buildSortOption('Name (Z-A)', 'name:desc', Icons.sort_by_alpha),
+                    _buildSortOption('Price (Low-High)', 'price:asc', Icons.attach_money),
+                    _buildSortOption('Price (High-Low)', 'price:desc', Icons.money_off),
+                    _buildSortOption('Number (Low-High)', 'number:asc', Icons.format_list_numbered),
+                    _buildSortOption('Number (High-Low)', 'number:desc', Icons.format_list_numbered_rtl),
+                    _buildSortOption('Release (Newest)', 'date:desc', Icons.calendar_today),
+                    _buildSortOption('Release (Oldest)', 'date:asc', Icons.calendar_today_outlined),
+                    // Add bottom padding for safety
+                    const SizedBox(height: 8),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 }

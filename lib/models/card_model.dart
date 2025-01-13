@@ -6,6 +6,7 @@ class TcgCard {
   final String rarity;
   final double? price;
   final String setNumber;
+  final DateTime? releaseDate;
 
   TcgCard({
     required this.id,
@@ -15,6 +16,7 @@ class TcgCard {
     required this.rarity,
     this.price,
     this.setNumber = '',
+    this.releaseDate,
   });
 
   factory TcgCard.fromJson(Map<String, dynamic> json) {

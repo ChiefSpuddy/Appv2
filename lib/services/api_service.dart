@@ -28,58 +28,63 @@ class ApiService {
     'X-Api-Key': 'eebb53a0-319a-4231-9244-fd7ea48b5d2c', // Add your API key here
   };
 
+  Map<String, String> get sortFieldMap => {
+    'price:asc': 'cardmarket.prices.averageSellPrice',
+    'price:desc': '-cardmarket.prices.averageSellPrice',
+    'name:asc': 'name',
+    'name:desc': '-name',
+    'number:asc': 'number',
+    'number:desc': '-number',
+    'date:asc': 'set.releaseDate',
+    'date:desc': '-set.releaseDate',
+  };
+
   Future<Map<String, dynamic>> searchCards(
     String query, {
-    String sortBy = 'name',
+    String sortBy = 'name:asc',
     bool rareOnly = false,
     int page = 1,
     int pageSize = 20,
   }) async {
-    final searchParts = _parseSearchQuery(query.trim());
-    final cacheKey = _generateCacheKey(searchParts.name, searchParts.number ?? '', sortBy, rareOnly, page, pageSize);
-    
-    if (_isCacheValid(cacheKey)) return _cache[cacheKey]!;
-    if (searchParts.name.isEmpty) return {'cards': [], 'totalCount': 0};
-
-    await _throttleRequest();
+    if (query.trim().isEmpty) return {'cards': [], 'totalCount': 0};
 
     try {
-      // Build search query differently
-      var searchTerms = [];
+      // Generate cache key for this search
+      final cacheKey = _generateCacheKey(query, '', sortBy, rareOnly, page, pageSize);
       
-      // Add name search
-      searchTerms.add('name:"*${searchParts.name}*"');
-      
-      // Only add number if it exists and is valid
-      if (searchParts.number?.isNotEmpty ?? false) {
-        // Remove any spaces but keep special characters for set numbers
-        final cleanNumber = searchParts.number!.replaceAll(' ', '');
-        searchTerms.add('number:$cleanNumber');
+      // Check cache first
+      if (_isCacheValid(cacheKey) && _cache.containsKey(cacheKey)) {
+        return _cache[cacheKey]!;
       }
 
+      // Simplify search query - just use the raw query
+      var searchQuery = 'name:"*${query.trim()}*"';
+      
+      // Add rarity filter if needed
       if (rareOnly) {
-        searchTerms.add('(rarity:rare or rarity:"rare holo" or rarity:"rare ultra")');
+        searchQuery += ' (rarity:rare or rarity:"rare holo" or rarity:"rare ultra")';
       }
 
-      final searchQuery = searchTerms.join(' ');
+      // Simplify sort handling
+      final orderBy = sortFieldMap[sortBy] ?? 'name';
 
       final url = Uri.parse('$_baseUrl/cards').replace(
         queryParameters: {
           'q': searchQuery,
-          'orderBy': sortBy,
+          'orderBy': orderBy,
           'page': page.toString(),
           'pageSize': pageSize.toString(),
-          // Update select fields to avoid CORS issues with images
           'select': 'id,name,number,set,rarity,cardmarket,images',
         },
       );
 
       final headers = Map<String, String>.from(_headers);
-      // Add CORS headers
+      // Update CORS headers
       headers.addAll({
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
         'Access-Control-Allow-Headers': 'Origin, Content-Type, X-Api-Key',
+        'Referrer-Policy': 'no-referrer',
       });
 
       final response = await http.get(url, headers: headers);
@@ -93,7 +98,7 @@ class ApiService {
           'pageSize': data['pageSize'] ?? pageSize,
         };
 
-        // Cache the result
+        // Cache the result with the generated key
         _cache[cacheKey] = result;
         _cacheTimestamps[cacheKey] = DateTime.now();
         
@@ -139,8 +144,18 @@ class ApiService {
       setName: card['set']?['name'] ?? 'Unknown Set',
       rarity: card['rarity'] ?? 'Unknown',
       price: _parsePrice(card['cardmarket']?['prices']?['averageSellPrice']),
+      setNumber: card['number'] ?? '',
+      releaseDate: _parseDate(card['set']?['releaseDate']?.toString()),
     )).toList();
   }
+
+  // Update sort field mapping
+  Map<String, String> get _sortFieldMap => {
+    'price': 'cardmarket.prices.averageSellPrice',
+    'name': 'name',
+    'number': 'number',
+    'date': 'set.releaseDate',
+  };
 
   String _generateCacheKey(
     String query,
@@ -175,6 +190,29 @@ class ApiService {
     if (price is num) return price.toDouble();
     if (price is String) return double.tryParse(price);
     return null;
+  }
+
+  DateTime? _parseDate(String? dateStr) {
+    if (dateStr == null) return null;
+    try {
+      // First try standard ISO format
+      return DateTime.parse(dateStr);
+    } catch (e) {
+      try {
+        // Try parsing date with forward slashes
+        final parts = dateStr.split('/');
+        if (parts.length == 3) {
+          return DateTime(
+            int.parse(parts[0]), // year
+            int.parse(parts[1]), // month
+            int.parse(parts[2]), // day
+          );
+        }
+      } catch (e) {
+        print('Error parsing date: $dateStr');
+      }
+      return null;
+    }
   }
 
   void clearCache() {
