@@ -4,29 +4,36 @@ publish_to: 'none'
 version: 1.0.0+1
 
 environment:
-  sdk: ^3.6.0
+  sdk: '>=3.2.0 <4.0.0'
+  flutter: ">=3.16.0"
 
 dependencies:
   flutter:
     sdk: flutter
-  provider: ^6.0.5
-  shared_preferences: ^2.2.0
+  cupertino_icons: ^1.0.6
+  
+  # State Management
+  provider: ^6.1.1
+  shared_preferences: ^2.2.2
+  
+  # UI Components
+  shimmer: ^3.0.0
+  cached_network_image: ^3.3.1
+  fl_chart: ^0.66.0
   
   # Firebase
   firebase_core: ^2.27.1
-  firebase_auth: ^4.15.3  # Use the latest version
-  cloud_firestore: ^4.15.5
+  firebase_auth: ^4.17.9
+  cloud_firestore: ^4.15.9
   
-  # API and Networking
-  http: ^1.1.0
-  cached_network_image: ^3.2.3
-  fl_chart: ^0.66.0
+  # Networking & Data
+  http: ^1.2.0
   crypto: ^3.0.3
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints: ^2.0.3
+  flutter_lints: ^3.0.1
 
 flutter:
   uses-material-design: true

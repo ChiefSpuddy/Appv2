@@ -33,14 +33,10 @@ class CollectionService {
     try {
       final double? validPrice = card.price != null ? 
           double.parse(card.price!.toStringAsFixed(2)) : null;
-          
-      // Use regular timestamp for array items
+      
       final now = Timestamp.now();
-      final priceHistoryEntry = {
-        'price': validPrice,
-        'timestamp': now,  // Regular timestamp instead of FieldValue
-      };
-
+      
+      // First add the card
       await collection.doc(userId).collection('userCards').add({
         'id': card.id,
         'name': card.name,
@@ -48,15 +44,99 @@ class CollectionService {
         'setName': card.setName,
         'rarity': card.rarity,
         'price': validPrice,
-        'dateAdded': FieldValue.serverTimestamp(),  // This is fine as it's not in an array
-        'lastUpdated': FieldValue.serverTimestamp(),
-        'priceHistory': [priceHistoryEntry],
+        'dateAdded': now,  // Use same timestamp for consistency
+        'lastUpdated': now,
+        'priceHistory': [{
+          'price': validPrice,
+          'timestamp': now,
+        }],
       });
       
+      // Update monthly stats
+      await _updateMonthlyStats(validPrice ?? 0.0, true);
+      
+      // Update price history
       await _updatePriceHistory();
+      
     } catch (e) {
       print('Error adding card: $e');
       throw Exception('Could not add card to collection');
+    }
+  }
+
+  Future<void> removeCard(String docId) async {
+    if (userId.isEmpty) {
+      throw Exception('User not authenticated');
+    }
+
+    try {
+      // Get the card's price before removing it
+      final cardDoc = await collection.doc(userId).collection('userCards').doc(docId).get();
+      final price = (cardDoc.data()?['price'] as num?)?.toDouble() ?? 0.0;
+
+      // Remove the card
+      await collection.doc(userId).collection('userCards').doc(docId).delete();
+
+      // Update monthly stats with negative value
+      await _updateMonthlyStats(price, false);
+
+      // Update custom collections that contain this card
+      await _removeCardFromCustomCollections(docId);
+
+      // Update price history
+      await _updatePriceHistory();
+    } catch (e) {
+      print('Error removing card: $e');
+      throw Exception('Could not remove card from collection');
+    }
+  }
+
+  Future<void> _updateMonthlyStats(double value, bool isAddition) async {
+    final now = DateTime.now();
+    final monthKey = '${now.year}-${now.month.toString().padLeft(2, '0')}';
+    
+    final monthlyStatsRef = _firestore
+        .collection('users')
+        .doc(userId)
+        .collection('monthlyStats')
+        .doc(monthKey);
+
+    await monthlyStatsRef.set({
+      'cardsAdded': FieldValue.increment(isAddition ? 1 : -1),
+      'valueAdded': FieldValue.increment(isAddition ? value : -value),
+      'lastUpdated': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
+
+  Future<void> _removeCardFromCustomCollections(String cardId) async {
+    try {
+      // Get all custom collections
+      final collectionsSnapshot = await collection
+          .doc(userId)
+          .collection('customCollections')
+          .get();
+
+      // Update each collection that contains the card
+      for (var collectionDoc in collectionsSnapshot.docs) {
+        final cardIds = List<String>.from(collectionDoc.data()['cardIds'] ?? []);
+        
+        if (cardIds.contains(cardId)) {
+          cardIds.remove(cardId);
+          
+          await collection
+              .doc(userId)
+              .collection('customCollections')
+              .doc(collectionDoc.id)
+              .update({
+                'cardIds': cardIds,
+              });
+
+          // Update the collection's price history
+          await _updateCollectionPriceHistory(collectionDoc.id);
+        }
+      }
+    } catch (e) {
+      print('Error updating custom collections: $e');
     }
   }
 
@@ -172,16 +252,11 @@ class CollectionService {
     if (userId.isEmpty) {
       throw Exception('User not authenticated');
     }
-    return collection.doc(userId).collection('userCards').orderBy('dateAdded', descending: true).snapshots();
-  }
-
-  Future<void> removeCard(String docId) async {
-    if (userId.isEmpty) {
-      throw Exception('User not authenticated');
-    }
-    await collection.doc(userId).collection('userCards').doc(docId).delete();
-    // Update price history after removing card
-    await _updatePriceHistory();
+    return collection
+        .doc(userId)
+        .collection('userCards')
+        .orderBy('price', descending: true) // Changed from dateAdded to price
+        .snapshots();
   }
 
   Future<Map<String, dynamic>> getCollectionStats() async {
@@ -467,6 +542,7 @@ class CollectionService {
 
   Future<double> calculateCollectionValue(List<String> cardIds) async {
     if (userId.isEmpty) throw Exception('User not authenticated');
+    if (cardIds.isEmpty) return 0.0;  // Return 0 for empty collections
 
     try {
       final cards = await collection
@@ -485,7 +561,7 @@ class CollectionService {
       return double.parse(total.toStringAsFixed(2));
     } catch (e) {
       print('Error calculating collection value: $e');
-      return 0.0;
+      return 0.0;  // Return 0 on error
     }
   }
 
@@ -521,6 +597,38 @@ class CollectionService {
       print('Error getting custom collections: $e');
       rethrow;
     }
+  }
+
+  Stream<List<CustomCollection>> getCustomCollectionsStream() {
+    if (userId.isEmpty) throw Exception('User not authenticated');
+    
+    return collection
+        .doc(userId)
+        .collection('customCollections')
+        .snapshots()
+        .asyncMap((snapshot) async {
+          final collections = await Future.wait(
+            snapshot.docs.map((doc) async {
+              final data = doc.data();
+              final cardIds = List<String>.from(data['cardIds'] ?? []);
+              final totalValue = await calculateCollectionValue(cardIds);
+              
+              return CustomCollection(
+                id: doc.id,
+                name: data['name'] ?? '',
+                description: data['description'] ?? '',
+                createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+                cardIds: cardIds,
+                totalValue: totalValue,
+                tags: List<String>.from(data['tags'] ?? []),
+                shareCode: data['shareCode'],
+                notes: List<Map<String, dynamic>>.from(data['notes'] ?? []),
+                priceHistory: List<Map<String, dynamic>>.from(data['priceHistory'] ?? []),
+              );
+            }),
+          );
+          return collections;
+        });
   }
 
   Future<CustomCollection> createCustomCollection(String name, String description) async {
@@ -607,11 +715,16 @@ class CollectionService {
   Future<void> deleteCollection(String collectionId) async {
     if (userId.isEmpty) throw Exception('User not authenticated');
 
-    await collection
-        .doc(userId)
-        .collection('customCollections')
-        .doc(collectionId)
-        .delete();
+    try {
+      await collection
+          .doc(userId)
+          .collection('customCollections')
+          .doc(collectionId)
+          .delete();
+    } catch (e) {
+      print('Error deleting collection: $e');
+      throw Exception('Failed to delete collection');
+    }
   }
 
   Future<List<TcgCard>> getCollectionCards(
@@ -828,22 +941,38 @@ class CollectionService {
 
   Future<void> _updateCollectionPriceHistory(String collectionId) async {
     try {
-      final totalValue = await calculateCollectionValue(
-        (await getCollectionCards(collectionId)).map((c) => c.id).toList(),
-      );
-
-      final historyEntry = {
-        'value': totalValue,
-        'timestamp': FieldValue.serverTimestamp(),
-      };
-
-      await collection
+      final collectionRef = collection
           .doc(userId)
           .collection('customCollections')
-          .doc(collectionId)
-          .update({
-            'priceHistory': FieldValue.arrayUnion([historyEntry]),
-          });
+          .doc(collectionId);
+
+      // Get current cardIds
+      final doc = await collectionRef.get();
+      if (!doc.exists) return;
+
+      final cardIds = List<String>.from(doc.data()?['cardIds'] ?? []);
+      if (cardIds.isEmpty) {
+        // If collection is empty, just update with 0 value
+        final historyEntry = {
+          'value': 0.0,
+          'timestamp': Timestamp.now(),  // Use Timestamp instead of serverTimestamp
+        };
+
+        await collectionRef.update({
+          'priceHistory': FieldValue.arrayUnion([historyEntry]),
+        });
+        return;
+      }
+
+      final totalValue = await calculateCollectionValue(cardIds);
+      final historyEntry = {
+        'value': totalValue,
+        'timestamp': Timestamp.now(),  // Use Timestamp instead of serverTimestamp
+      };
+
+      await collectionRef.update({
+        'priceHistory': FieldValue.arrayUnion([historyEntry]),
+      });
     } catch (e) {
       print('Error updating collection price history: $e');
     }

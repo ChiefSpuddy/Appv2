@@ -33,10 +33,14 @@ class _SearchScreenState extends State<SearchScreen> {
   List<String> _suggestions = [];
   bool _isLoading = false;
   String? _error;
+  late final FocusNode _searchFocusNode;
+  late final FocusNode _setNumberFocusNode;
 
   @override
   void initState() {
     super.initState();
+    _searchFocusNode = FocusNode();
+    _setNumberFocusNode = FocusNode();
     _loadPokemonNames();
   }
 
@@ -46,6 +50,8 @@ class _SearchScreenState extends State<SearchScreen> {
 
   @override
   void dispose() {
+    _searchFocusNode.dispose();
+    _setNumberFocusNode.dispose();
     _searchController.dispose();
     _setNumberController.dispose();
     _debounce?.cancel();
@@ -53,35 +59,17 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   void _onSearchChanged(String query) {
-    // Reset error state when search changes
-    if (_error != null) {
-      setState(() => _error = null);
-    }
+    if (_debounce?.isActive ?? false) _debounce?.cancel();
 
-    // Show suggestions if query length is at least 2 characters
-    if (query.length >= 2) {
+    // Only update suggestions, don't trigger search
+    if (mounted) {
       setState(() {
-        _suggestions = _pokemonService.getSuggestions(query);
+        if (query.length >= 2) {
+          _suggestions = _pokemonService.getSuggestions(query);
+        } else {
+          _suggestions = [];
+        }
       });
-    } else {
-      setState(() {
-        _suggestions = [];
-      });
-    }
-
-    // Only perform API search if:
-    // 1. No suggestions are shown OR query is exact match
-    // 2. Query is at least 2 characters
-    if ((_suggestions.isEmpty || _suggestions.contains(query)) && query.length >= 2) {
-      _debounce?.cancel();
-      _debounce = Timer(const Duration(milliseconds: 500), () {
-        _performSearch(query);
-      });
-    }
-
-    // Clear results if query is empty
-    if (query.isEmpty && _cards != null) {
-      setState(() => _cards = null);
     }
   }
 
@@ -321,58 +309,64 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   Widget _buildSuggestionsList() {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     if (_suggestions.isEmpty) return const SizedBox.shrink();
     
-    return Container(
-      key: const ValueKey('suggestionsList'),
-      margin: const EdgeInsets.only(top: 8),
-      constraints: const BoxConstraints(maxHeight: 200),
-      decoration: BoxDecoration(
-        color: isDark ? Colors.grey[900] : Colors.white,
-        border: Border.all(
-          color: isDark ? Colors.grey[800]! : Colors.grey[300]!,
-        ),
-        borderRadius: BorderRadius.circular(4),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
+    return MouseRegion(
+      hitTestBehavior: HitTestBehavior.translucent,
+      child: Material(
+        elevation: 8,
+        borderRadius: BorderRadius.circular(8),
+        child: Container(
+          key: const ValueKey('suggestionsList'),
+          constraints: const BoxConstraints(maxHeight: 200),
+          decoration: BoxDecoration(
+            color: isDark ? Colors.grey[900] : Colors.white,
+            borderRadius: BorderRadius.circular(8),
           ),
-        ],
-      ),
-      child: ListView.builder(
-        shrinkWrap: true,
-        itemCount: _suggestions.length,
-        itemBuilder: (context, index) {
-          if (index >= _suggestions.length) return const SizedBox();
-          final suggestion = _suggestions[index];
-          return ListTile(
-            key: ValueKey('suggestion_$index'),
-            title: Text(
-              suggestion,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-            dense: true,
-            onTap: () {
-              setState(() {
-                _searchController.text = suggestion;
-                _suggestions = [];
-              });
-              _performSearch(suggestion);
+          child: ListView.builder(
+            padding: EdgeInsets.zero,
+            shrinkWrap: true,
+            itemCount: _suggestions.length,
+            itemBuilder: (context, index) {
+              final suggestion = _suggestions[index];
+              return InkWell(
+                onTap: () {
+                  setState(() {
+                    _searchController.text = suggestion;
+                    _searchController.selection = TextSelection.fromPosition(
+                      TextPosition(offset: suggestion.length),
+                    );
+                    _suggestions = [];
+                  });
+                  _searchFocusNode.unfocus();
+                  _performSearch(suggestion);
+                },
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  child: Text(
+                    suggestion,
+                    style: TextStyle(
+                      color: isDark ? Colors.white : Colors.black87,
+                    ),
+                  ),
+                ),
+              );
             },
-          );
-        },
+          ),
+        ),
       ),
     );
   }
 
   Widget _buildSearchField() {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    return TextField(
+    
+    return TextFormField(
       controller: _searchController,
+      focusNode: _searchFocusNode, // Use the class FocusNode
+      enableInteractiveSelection: true, // Enable text selection
       decoration: InputDecoration(
         hintText: 'Search by name...',
         filled: true,
@@ -382,42 +376,56 @@ class _SearchScreenState extends State<SearchScreen> {
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide.none,
         ),
-        prefixIcon: Icon(Icons.search, color: isDark ? Colors.grey[400] : Colors.grey[600]),
-        suffixIcon: _searchController.text.isNotEmpty || _isLoading
-          ? Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (_isLoading)
-                  const Padding(
-                    padding: EdgeInsets.all(8.0),
-                    child: SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    ),
-                  )
-                else
-                  IconButton(
-                    icon: const Icon(Icons.clear),
-                    onPressed: _clearSearch,
-                  ),
-              ],
-            )
-          : null,
-        hintStyle: TextStyle(
-          color: isDark ? Colors.grey[500] : Colors.grey[600],
+        prefixIcon: Icon(
+          Icons.search,
+          color: isDark ? Colors.grey[400] : Colors.grey[600],
+        ),
+        suffixIcon: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (_isLoading)
+              const Padding(
+                padding: EdgeInsets.all(8.0),
+                child: SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              )
+            else if (_searchController.text.isNotEmpty)
+              IconButton(
+                icon: const Icon(Icons.search),
+                onPressed: () {
+                  _searchFocusNode.unfocus();
+                  _performSearch(_searchController.text);
+                },
+              ),
+            if (_searchController.text.isNotEmpty)
+              IconButton(
+                icon: const Icon(Icons.clear),
+                onPressed: () {
+                  _searchController.clear();
+                  _clearSearch();
+                  _searchFocusNode.requestFocus();
+                },
+              ),
+          ],
         ),
       ),
       style: TextStyle(
         color: isDark ? Colors.white : Colors.black87,
       ),
+      onTap: () {
+        _searchFocusNode.requestFocus();
+      },
       onChanged: _onSearchChanged,
-      textInputAction: TextInputAction.search,
-      onSubmitted: (value) {
+      onFieldSubmitted: (value) {
         if (value.isNotEmpty) {
+          _searchFocusNode.unfocus();
           _performSearch(value);
         }
       },
+      textInputAction: TextInputAction.search,
     );
   }
 
@@ -470,241 +478,270 @@ class _SearchScreenState extends State<SearchScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     
     return Material(  // Add this Material widget
-      child: Container(
-        color: Theme.of(context).scaffoldBackgroundColor, // Light background
-        child: Column(
-          children: [
-            AppBar(
-              elevation: 0,
-              backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
-              iconTheme: Theme.of(context).appBarTheme.iconTheme,
-              title: Text(
-                'TCG Card Search',
-                style: TextStyle(
-                  color: Theme.of(context).appBarTheme.foregroundColor,
-                ),
-              ),
-              actions: [
-                // Add clear button before the menu
-                IconButton(
-                  icon: const Icon(Icons.clear),
-                  tooltip: 'Clear Search',
-                  onPressed: _clearSearch,
-                ),
-                PopupMenuButton<String>(
-                  icon: const Icon(Icons.menu),
-                  onSelected: (value) async {
-                    switch (value) {
-                      case 'sort_name':
-                        setState(() => _sortBy = 'name');
-                        if (_cards != null) _performSearch(_searchController.text);
-                        break;
-                      case 'sort_number':
-                        setState(() => _sortBy = 'number');
-                        if (_cards != null) _performSearch(_searchController.text);
-                        break;
-                      case 'sort_price':
-                        setState(() => _sortBy = 'price');
-                        if (_cards != null) _performSearch(_searchController.text);
-                        break;
-                      case 'toggle_theme':
-                        Provider.of<ThemeProvider>(context, listen: false).toggleTheme();
-                        break;
-                      case 'toggle_rare':
-                        setState(() => _showRareOnly = !_showRareOnly);
-                        if (_cards != null) _performSearch(_searchController.text);
-                        break;
-                      case 'logout':
-                        final authService = AuthService();
-                        await authService.signOut();
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Logged out successfully')),
-                          );
+      child: Focus(
+        onFocusChange: (hasFocus) {
+          if (!hasFocus) {
+            _searchFocusNode.unfocus();
+            _setNumberFocusNode.unfocus();
+          }
+        },
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTapDown: (_) {
+            // Check if tap is not on a text field before unfocusing
+            if (!_searchFocusNode.hasFocus && !_setNumberFocusNode.hasFocus) {
+              _searchFocusNode.unfocus();
+              _setNumberFocusNode.unfocus();
+            }
+          },
+          child: Container(
+            color: Theme.of(context).scaffoldBackgroundColor, // Light background
+            child: Column(
+              children: [
+                AppBar(
+                  elevation: 0,
+                  backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
+                  iconTheme: Theme.of(context).appBarTheme.iconTheme,
+                  title: Text(
+                    'TCG Card Search',
+                    style: TextStyle(
+                      color: Theme.of(context).appBarTheme.foregroundColor,
+                    ),
+                  ),
+                  actions: [
+                    // Add clear button before the menu
+                    IconButton(
+                      icon: const Icon(Icons.clear),
+                      tooltip: 'Clear Search',
+                      onPressed: _clearSearch,
+                    ),
+                    PopupMenuButton<String>(
+                      icon: const Icon(Icons.menu),
+                      onSelected: (value) async {
+                        switch (value) {
+                          case 'sort_name':
+                            setState(() => _sortBy = 'name');
+                            if (_cards != null) _performSearch(_searchController.text);
+                            break;
+                          case 'sort_number':
+                            setState(() => _sortBy = 'number');
+                            if (_cards != null) _performSearch(_searchController.text);
+                            break;
+                          case 'sort_price':
+                            setState(() => _sortBy = 'price');
+                            if (_cards != null) _performSearch(_searchController.text);
+                            break;
+                          case 'toggle_theme':
+                            Provider.of<ThemeProvider>(context, listen: false).toggleTheme();
+                            break;
+                          case 'toggle_rare':
+                            setState(() => _showRareOnly = !_showRareOnly);
+                            if (_cards != null) _performSearch(_searchController.text);
+                            break;
+                          case 'logout':
+                            final authService = AuthService();
+                            await authService.signOut();
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Logged out successfully')),
+                              );
+                            }
+                            break;
                         }
-                        break;
-                    }
-                  },
-                  itemBuilder: (context) => [
-                    PopupMenuItem<String>(
-                      value: 'toggle_theme',
-                      child: ListTile(
-                        dense: true,
-                        leading: Icon(
-                          Provider.of<ThemeProvider>(context, listen: false).isDarkMode 
-                              ? Icons.light_mode 
-                              : Icons.dark_mode
+                      },
+                      itemBuilder: (context) => [
+                        PopupMenuItem<String>(
+                          value: 'toggle_theme',
+                          child: ListTile(
+                            dense: true,
+                            leading: Icon(
+                              Provider.of<ThemeProvider>(context, listen: false).isDarkMode 
+                                  ? Icons.light_mode 
+                                  : Icons.dark_mode
+                            ),
+                            title: Text(
+                              Provider.of<ThemeProvider>(context, listen: false).isDarkMode
+                                  ? 'Light Mode'
+                                  : 'Dark Mode'
+                            ),
+                          ),
                         ),
-                        title: Text(
-                          Provider.of<ThemeProvider>(context, listen: false).isDarkMode
-                              ? 'Light Mode'
-                              : 'Dark Mode'
+                        const PopupMenuDivider(),
+                        // ...existing menu items...
+                        const PopupMenuItem(
+                          value: 'sort_name',
+                          child: ListTile(
+                            dense: true,
+                            leading: Icon(Icons.sort_by_alpha),
+                            title: Text('Sort by Name'),
+                          ),
                         ),
-                      ),
-                    ),
-                    const PopupMenuDivider(),
-                    // ...existing menu items...
-                    const PopupMenuItem(
-                      value: 'sort_name',
-                      child: ListTile(
-                        dense: true,
-                        leading: Icon(Icons.sort_by_alpha),
-                        title: Text('Sort by Name'),
-                      ),
-                    ),
-                    const PopupMenuItem(
-                      value: 'sort_number',
-                      child: ListTile(
-                        dense: true,
-                        leading: Icon(Icons.format_list_numbered),
-                        title: Text('Sort by Number'),
-                      ),
-                    ),
-                    const PopupMenuItem(
-                      value: 'sort_price',
-                      child: ListTile(
-                        dense: true,
-                        leading: Icon(Icons.attach_money),
-                        title: Text('Sort by Price'),
-                      ),
-                    ),
-                    const PopupMenuDivider(),
-                    PopupMenuItem(
-                      value: 'toggle_rare',
-                      child: ListTile(
-                        dense: true,
-                        leading: Icon(Icons.star),
-                        title: Text(_showRareOnly ? 'Show All Cards' : 'Show Rare Only'),
-                      ),
-                    ),
-                    const PopupMenuDivider(),
-                    const PopupMenuItem(
-                      value: 'logout',
-                      child: Row(
-                        children: [
-                          Icon(Icons.logout, color: Colors.red),
-                          SizedBox(width: 8),
-                          Text('Logout'),
-                        ],
-                      ),
+                        const PopupMenuItem(
+                          value: 'sort_number',
+                          child: ListTile(
+                            dense: true,
+                            leading: Icon(Icons.format_list_numbered),
+                            title: Text('Sort by Number'),
+                          ),
+                        ),
+                        const PopupMenuItem(
+                          value: 'sort_price',
+                          child: ListTile(
+                            dense: true,
+                            leading: Icon(Icons.attach_money),
+                            title: Text('Sort by Price'),
+                          ),
+                        ),
+                        const PopupMenuDivider(),
+                        PopupMenuItem(
+                          value: 'toggle_rare',
+                          child: ListTile(
+                            dense: true,
+                            leading: Icon(Icons.star),
+                            title: Text(_showRareOnly ? 'Show All Cards' : 'Show Rare Only'),
+                          ),
+                        ),
+                        const PopupMenuDivider(),
+                        const PopupMenuItem(
+                          value: 'logout',
+                          child: Row(
+                            children: [
+                              Icon(Icons.logout, color: Colors.red),
+                              SizedBox(width: 8),
+                              Text('Logout'),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
-              ],
-            ),
-            Expanded(
-              child: Column(
-                children: [
-                  Container(
-                    color: Theme.of(context).cardColor,
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      children: [
-                        Row(
+                Expanded(
+                  child: Column(
+                    children: [
+                      Container(
+                        color: Theme.of(context).cardColor,
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
                           children: [
-                            Expanded(
-                              flex: 7,
-                              child: TextField(
-                                controller: _searchController,
-                                decoration: InputDecoration(
-                                  hintText: 'Search by name...',
-                                  filled: true,
-                                  fillColor: isDark ? Colors.grey[900] : Colors.grey[100],
-                                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                    borderSide: BorderSide.none,
-                                  ),
-                                  prefixIcon: Icon(
-                                    Icons.search,
-                                    color: isDark ? Colors.grey[400] : Colors.grey[600],
-                                  ),
-                                  suffixIcon: _searchController.text.isNotEmpty || _isLoading
-                                    ? Row(
+                            Row(
+                              children: [
+                                Expanded(
+                                  flex: 7,
+                                  child: TextFormField(
+                                    controller: _searchController,
+                                    focusNode: _searchFocusNode,
+                                    // Remove onTapOutside here
+                                    decoration: InputDecoration(
+                                      hintText: 'Search by name...',
+                                      filled: true,
+                                      fillColor: isDark ? Colors.grey[900] : Colors.grey[100],
+                                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                        borderSide: BorderSide.none,
+                                      ),
+                                      prefixIcon: Icon(
+                                        Icons.search,
+                                        color: isDark ? Colors.grey[400] : Colors.grey[600],
+                                      ),
+                                      suffixIcon: Row(
                                         mainAxisSize: MainAxisSize.min,
                                         children: [
                                           if (_isLoading)
-                                            Padding(
-                                              padding: const EdgeInsets.all(8.0),
+                                            const Padding(
+                                              padding: EdgeInsets.all(8.0),
                                               child: SizedBox(
                                                 width: 20,
                                                 height: 20,
-                                                child: CircularProgressIndicator(
-                                                  strokeWidth: 2,
-                                                  color: isDark ? Colors.white70 : null,
-                                                ),
+                                                child: CircularProgressIndicator(strokeWidth: 2),
                                               ),
                                             )
-                                          else
+                                          else if (_searchController.text.isNotEmpty)
                                             IconButton(
-                                              icon: Icon(
-                                                Icons.clear,
-                                                color: isDark ? Colors.grey[400] : Colors.grey[600],
-                                              ),
-                                              onPressed: _clearSearch,
+                                              icon: const Icon(Icons.search),
+                                              onPressed: () {
+                                                _searchFocusNode.unfocus();
+                                                _performSearch(_searchController.text);
+                                              },
+                                            ),
+                                          if (_searchController.text.isNotEmpty)
+                                            IconButton(
+                                              icon: const Icon(Icons.clear),
+                                              onPressed: () {
+                                                _searchController.clear();
+                                                _clearSearch();
+                                                _searchFocusNode.requestFocus();
+                                              },
                                             ),
                                         ],
-                                      )
-                                    : null,
-                                  hintStyle: TextStyle(
-                                    color: isDark ? Colors.grey[500] : Colors.grey[600],
+                                      ),
+                                    ),
+                                    style: TextStyle(
+                                      color: isDark ? Colors.white : Colors.black87,
+                                    ),
+                                    onChanged: _onSearchChanged,
+                                    onFieldSubmitted: (value) {
+                                      if (value.isNotEmpty) {
+                                        _performSearch(value);
+                                      }
+                                    },
+                                    textInputAction: TextInputAction.search,
                                   ),
                                 ),
-                                style: TextStyle(
-                                  color: isDark ? Colors.white : Colors.black87,
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  flex: 3,
+                                  child: TextFormField(
+                                    controller: _setNumberController,
+                                    focusNode: _setNumberFocusNode,
+                                    // Remove onTapOutside here
+                                    decoration: InputDecoration(
+                                      hintText: 'Set #',
+                                      filled: true,
+                                      fillColor: isDark ? Colors.grey[900] : Colors.grey[100],
+                                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                        borderSide: BorderSide.none,
+                                      ),
+                                      suffixIcon: _setNumberController.text.isNotEmpty
+                                        ? IconButton(
+                                            icon: Icon(
+                                              Icons.clear,
+                                              color: isDark ? Colors.grey[400] : Colors.grey[600],
+                                            ),
+                                            onPressed: () {
+                                              _setNumberController.clear();
+                                              _performSearch(_searchController.text);
+                                            },
+                                          )
+                                        : null,
+                                      hintStyle: TextStyle(
+                                        color: isDark ? Colors.grey[500] : Colors.grey[600],
+                                      ),
+                                    ),
+                                    style: TextStyle(
+                                      color: isDark ? Colors.white : Colors.black87,
+                                    ),
+                                    // ...rest of TextField properties
+                                  ),
                                 ),
-                                // ...rest of TextField properties
-                              ),
+                              ],
                             ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              flex: 3,
-                              child: TextField(
-                                controller: _setNumberController,
-                                decoration: InputDecoration(
-                                  hintText: 'Set #',
-                                  filled: true,
-                                  fillColor: isDark ? Colors.grey[900] : Colors.grey[100],
-                                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                    borderSide: BorderSide.none,
-                                  ),
-                                  suffixIcon: _setNumberController.text.isNotEmpty
-                                    ? IconButton(
-                                        icon: Icon(
-                                          Icons.clear,
-                                          color: isDark ? Colors.grey[400] : Colors.grey[600],
-                                        ),
-                                        onPressed: () {
-                                          _setNumberController.clear();
-                                          _performSearch(_searchController.text);
-                                        },
-                                      )
-                                    : null,
-                                  hintStyle: TextStyle(
-                                    color: isDark ? Colors.grey[500] : Colors.grey[600],
-                                  ),
-                                ),
-                                style: TextStyle(
-                                  color: isDark ? Colors.white : Colors.black87,
-                                ),
-                                // ...rest of TextField properties
-                              ),
-                            ),
+                            _buildSuggestionsList(),
                           ],
                         ),
-                        _buildSuggestionsList(),
-                      ],
-                    ),
+                      ),
+                      Expanded(
+                        child: _buildMainContent(),  // Replace the existing conditional with this
+                      ),
+                    ],
                   ),
-                  Expanded(
-                    child: _buildMainContent(),  // Replace the existing conditional with this
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );

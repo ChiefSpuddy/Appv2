@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:fl_chart/fl_chart.dart';  // Add this import
-import 'dart:math' show max, min;  // Update this import to include min
+import 'package:fl_chart/fl_chart.dart';
+import 'package:firebase_auth/firebase_auth.dart'; // Add this import
+import 'dart:math' show max, min;
 import '../services/collection_service.dart';
 import '../models/custom_collection.dart';
 import '../models/card_model.dart';
@@ -113,8 +114,8 @@ class CustomCollectionsScreen extends StatelessWidget {
           ),
         ],
       ),
-      body: FutureBuilder<List<CustomCollection>>(
-        future: service.getCustomCollections(),
+      body: StreamBuilder<List<CustomCollection>>(  // Change from FutureBuilder to StreamBuilder
+        stream: service.getCustomCollectionsStream(),  // New stream method
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
@@ -144,45 +145,155 @@ class CustomCollectionsScreen extends StatelessWidget {
           }
 
           return ListView.builder(
+            padding: const EdgeInsets.all(16),
             itemCount: collections.length,
             itemBuilder: (context, index) {
               final collection = collections[index];
               return Card(
-                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                color: isDark ? Theme.of(context).cardColor : Colors.white,
-                child: ListTile(
-                  title: Text(
-                    collection.name,
-                    style: TextStyle(
-                      color: isDark ? Colors.white : Colors.black87,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  subtitle: Text(
-                    '${collection.cardIds.length} cards • ${collection.totalValue?.toStringAsFixed(2) ?? '0.00'}€',
-                    style: TextStyle(
-                      color: isDark ? Colors.white70 : Colors.black54,
-                    ),
-                  ),
-                  leading: Icon(
-                    Icons.collections_bookmark,
-                    color: isDark ? Colors.white70 : Colors.grey[700],
-                  ),
-                  trailing: IconButton(
-                    icon: Icon(
-                      Icons.more_vert,
-                      color: isDark ? Colors.white70 : Colors.grey[700],
-                    ),
-                    onPressed: () => _showCollectionMenu(context, collection, service),
-                  ),
+                margin: const EdgeInsets.only(bottom: 16),
+                child: InkWell(
                   onTap: () => _navigateToCollection(context, collection),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    collection.name,
+                                    style: const TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  if (collection.description.isNotEmpty) ...[
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      collection.description,
+                                      style: TextStyle(
+                                        color: Colors.grey[600],
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.more_vert),
+                              onPressed: () => _showCollectionMenu(
+                                context, 
+                                collection, 
+                                service,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      StreamBuilder<List<TcgCard>>(
+                        stream: _getCollectionPreviewCards(collection.cardIds),
+                        builder: (context, snapshot) {
+                          if (!snapshot.hasData) {
+                            return const SizedBox(height: 100);
+                          }
+                          
+                          final previewCards = snapshot.data!;
+                          if (previewCards.isEmpty) {
+                            return const SizedBox(height: 100);
+                          }
+
+                          return SizedBox(
+                            height: 100,
+                            child: ListView.builder(
+                              scrollDirection: Axis.horizontal,
+                              padding: const EdgeInsets.symmetric(horizontal: 16),
+                              itemCount: previewCards.length,
+                              itemBuilder: (context, index) {
+                                return Padding(
+                                  padding: const EdgeInsets.only(right: 8),
+                                  child: AspectRatio(
+                                    aspectRatio: 0.7,
+                                    child: ClipRRect(
+                                      borderRadius: BorderRadius.circular(8),
+                                      child: Image.network(
+                                        previewCards[index].imageUrl,
+                                        fit: BoxFit.cover,
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          );
+                        },
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              '${collection.cardIds.length} cards',
+                              style: TextStyle(
+                                color: Colors.grey[600],
+                                fontSize: 14,
+                              ),
+                            ),
+                            if (collection.totalValue != null)
+                              Text(
+                                '€${collection.totalValue!.toStringAsFixed(2)}',
+                                style: TextStyle(
+                                  color: Colors.green[700],
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               );
             },
           );
         },
       ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => _createNewCollection(context, service),
+        child: const Icon(Icons.add),
+      ),
     );
+  }
+
+  Stream<List<TcgCard>> _getCollectionPreviewCards(List<String> cardIds) {
+    if (cardIds.isEmpty) return Stream.value([]);
+    
+    // Get up to 5 cards for preview
+    final previewCardIds = cardIds.take(5).toList();
+    
+    return FirebaseFirestore.instance
+        .collection('cards')
+        .doc(FirebaseAuth.instance.currentUser?.uid)
+        .collection('userCards')
+        .where(FieldPath.documentId, whereIn: previewCardIds)
+        .snapshots()
+        .map((snapshot) => snapshot.docs.map((doc) {
+              final data = doc.data();
+              return TcgCard(
+                id: data['id'],
+                name: data['name'],
+                imageUrl: data['imageUrl'],
+                setName: data['setName'],
+                rarity: data['rarity'],
+                price: data['price']?.toDouble(),
+              );
+            }).toList());
   }
 
   void _showCollectionMenu(BuildContext context, CustomCollection collection, CollectionService service) {

@@ -73,22 +73,26 @@ class HomeOverview extends StatelessWidget {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      _buildFeatureCard(
-                        context: context,
-                        title: 'Search Cards',
-                        icon: Icons.search,
-                        color: Colors.blue,
-                        description: 'Find cards to add to your collection',
-                        onTap: () => _navigateToIndex(context, 1),
+                      Flexible(
+                        child: _buildFeatureCard(
+                          context: context,
+                          title: 'Search Cards',
+                          icon: Icons.search,
+                          color: Colors.blue,
+                          description: 'Find cards to add to your collection',
+                          onTap: () => _navigateToIndex(context, 1),
+                        ),
                       ),
-                      const SizedBox(width: 16),
-                      _buildFeatureCard(
-                        context: context,
-                        title: 'My Collection',
-                        icon: Icons.collections,
-                        color: Colors.green,
-                        description: 'View and manage your cards',
-                        onTap: () => _navigateToIndex(context, 2),
+                      const SizedBox(width: 8),
+                      Flexible(
+                        child: _buildFeatureCard(
+                          context: context,
+                          title: 'My Collection',
+                          icon: Icons.collections,
+                          color: Colors.green,
+                          description: 'View and manage your cards',
+                          onTap: () => _navigateToIndex(context, 2),
+                        ),
                       ),
                     ],
                   ),

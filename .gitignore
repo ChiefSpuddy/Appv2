@@ -25,7 +25,7 @@
 .packages
 .pub-cache/
 .pub/
-build/
+/build/
 
 # Android related
 **/android/**/gradle-wrapper.jar
@@ -70,3 +70,24 @@ build/
 **/web/favicon.png
 **/web/icons/
 **/web/manifest.json
+lib/generated_plugin_registrant.dart
+
+# Symbolication related
+app.*.symbols
+
+# Obfuscation related
+app.*.map.json
+
+# Android Studio will place build artifacts here
+/android/app/debug
+/android/app/profile
+/android/app/release
+
+# Firebase config files
+google-services.json
+GoogleService-Info.plist
+firebase_options.dart
+
+# Environment files
+.env
+.env.*

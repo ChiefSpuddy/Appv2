@@ -27,6 +27,13 @@ class ThemeProvider with ChangeNotifier {
           backgroundColor: Colors.white,
           indicatorColor: Colors.indigo.withOpacity(0.2),
         ),
+        cardTheme: CardTheme(
+          elevation: 3,
+          shadowColor: Colors.black.withOpacity(0.2),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
       );
 
   ThemeData get darkTheme => ThemeData(
@@ -66,6 +73,13 @@ class ThemeProvider with ChangeNotifier {
           bodyLarge: TextStyle(color: Colors.white70),
           bodyMedium: TextStyle(color: Colors.white70),
           titleMedium: TextStyle(color: Colors.white),
+        ),
+        cardTheme: CardTheme(
+          elevation: 4,
+          shadowColor: Colors.black.withOpacity(0.4),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
         ),
       );
 

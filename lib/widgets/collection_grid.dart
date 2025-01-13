@@ -3,8 +3,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/collection_service.dart';
 import '../widgets/card_item.dart';
 import '../models/card_model.dart';
-import '../models/custom_collection.dart';  // Add this import
-import '../screens/custom_collection_detail_screen.dart';
+import '../models/custom_collection.dart';
+import '../screens/custom_collections_screen.dart';  // Make sure this path is correct
 
 class CollectionGrid extends StatefulWidget {
   const CollectionGrid({super.key});
@@ -264,6 +264,33 @@ class _CollectionGridState extends State<CollectionGrid> {
   Widget build(BuildContext context) {
     return Column(
       children: [
+        // Add this new Container for the Collections button
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: Row(
+            children: [
+              Expanded(
+                child: ElevatedButton.icon(
+                  icon: const Icon(Icons.collections_bookmark),
+                  label: const Text('My Custom Sets'), // Changed from 'My Collections'
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    backgroundColor: Theme.of(context).primaryColor,
+                    foregroundColor: Colors.white,
+                  ),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const CustomCollectionsScreen(),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
         if (_selectionMode) ...[
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),

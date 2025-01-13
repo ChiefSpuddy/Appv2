@@ -154,14 +154,6 @@ class CollectionScreen extends StatelessWidget {
                           );
                         }
                         break;
-                      case 'custom_collections':
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const CustomCollectionsScreen(),
-                          ),
-                        );
-                        break;
                     }
                   },
                   itemBuilder: (context) => [
@@ -236,14 +228,6 @@ class CollectionScreen extends StatelessWidget {
                       ),
                     ),
                     const PopupMenuDivider(),
-                    PopupMenuItem(
-                      value: 'custom_collections',
-                      child: ListTile(
-                        dense: true,
-                        leading: const Icon(Icons.collections_bookmark),
-                        title: const Text('Custom Collections'),
-                      ),
-                    ),
                     const PopupMenuDivider(),
                     // Logout option
                     PopupMenuItem(
