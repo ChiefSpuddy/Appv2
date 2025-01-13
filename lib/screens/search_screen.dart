@@ -21,7 +21,6 @@ class SearchScreen extends StatefulWidget {
 
 class _SearchScreenState extends State<SearchScreen> {
   final _searchController = TextEditingController();
-  final _setNumberController = TextEditingController();
   String _sortBy = 'name';
   bool _showRareOnly = false;
   final _apiService = ApiService();
@@ -34,14 +33,17 @@ class _SearchScreenState extends State<SearchScreen> {
   bool _isLoading = false;
   String? _error;
   late final FocusNode _searchFocusNode;
-  late final FocusNode _setNumberFocusNode;
+  int _currentPage = 1;
+  int _pageSize = ApiService.defaultPageSize;
+  int _totalResults = 0;
+  final ScrollController _scrollController = ScrollController();
 
   @override
   void initState() {
     super.initState();
     _searchFocusNode = FocusNode();
-    _setNumberFocusNode = FocusNode();
     _loadPokemonNames();
+    _scrollController.addListener(_onScroll);
   }
 
   Future<void> _loadPokemonNames() async {
@@ -51,17 +53,32 @@ class _SearchScreenState extends State<SearchScreen> {
   @override
   void dispose() {
     _searchFocusNode.dispose();
-    _setNumberFocusNode.dispose();
     _searchController.dispose();
-    _setNumberController.dispose();
     _debounce?.cancel();
+    _scrollController.dispose();
     super.dispose();
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels == _scrollController.position.maxScrollExtent) {
+      if (_cards != null && _cards!.length < _totalResults) {
+        _currentPage++;
+        _performSearch(_searchController.text);
+      }
+    }
   }
 
   void _onSearchChanged(String query) {
     if (_debounce?.isActive ?? false) _debounce?.cancel();
 
-    // Only update suggestions, don't trigger search
+    _debounce = Timer(const Duration(milliseconds: 500), () {
+      if (query.isNotEmpty) {
+        _currentPage = 1; // Reset to first page for new searches
+        _performSearch(query);
+      }
+    });
+
+    // Update suggestions
     if (mounted) {
       setState(() {
         if (query.length >= 2) {
@@ -74,7 +91,7 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   Future<void> _performSearch(String query) async {
-    if (query.isEmpty && _setNumberController.text.isEmpty) {
+    if (query.isEmpty) {
       setState(() => _cards = null);
       return;
     }
@@ -88,23 +105,29 @@ class _SearchScreenState extends State<SearchScreen> {
     try {
       final results = await _apiService.searchCards(
         query, 
-        setNumber: _setNumberController.text,
         sortBy: _sortBy,
         rareOnly: _showRareOnly,
+        page: _currentPage,
+        pageSize: _pageSize,
       );
       
       if (!mounted) return;
 
       // Save search if it produced results
-      if (results.isNotEmpty) {
+      if (results['cards'].isNotEmpty) {
         await _searchHistoryService.saveSearch(
           query,
-          imageUrl: results.first.imageUrl,
+          imageUrl: results['cards'].first.imageUrl,
         );
       }
 
       setState(() {
-        _cards = results;
+        if (_currentPage == 1) {
+          _cards = results['cards'];
+        } else {
+          _cards = [...?_cards, ...results['cards']];
+        }
+        _totalResults = results['totalCount'];
         _isLoading = false;
       });
     } catch (e) {
@@ -120,8 +143,9 @@ class _SearchScreenState extends State<SearchScreen> {
   void _clearSearch() {
     setState(() {
       _searchController.clear();
-      _setNumberController.clear();
+      _currentPage = 1;
       _cards = null;
+      _totalResults = 0;
       _suggestions = [];
       _error = null;
       _isLoading = false;
@@ -360,78 +384,73 @@ class _SearchScreenState extends State<SearchScreen> {
     );
   }
 
-  Widget _buildSearchField() {
+  Widget _buildSearchBar() {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     
-    return TextFormField(
-      controller: _searchController,
-      focusNode: _searchFocusNode, // Use the class FocusNode
-      enableInteractiveSelection: true, // Enable text selection
-      decoration: InputDecoration(
-        hintText: 'Search by name...',
-        filled: true,
-        fillColor: isDark ? Colors.grey[900] : Colors.grey[100],
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide.none,
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: TextField(
+        controller: _searchController,
+        focusNode: _searchFocusNode,
+        decoration: InputDecoration(
+          hintText: 'Search cards by name...',
+          filled: true,
+          fillColor: isDark ? Colors.grey[900] : Colors.grey[200], // Made lighter background darker
+          prefixIcon: Icon(
+            Icons.search,
+            color: isDark ? Colors.grey[400] : Colors.grey[600], // Darker icon in light mode
+          ),
+          suffixIcon: _searchController.text.isNotEmpty
+              ? IconButton(
+                  icon: Icon(
+                    Icons.clear,
+                    color: isDark ? Colors.grey[400] : Colors.grey[600], // Darker icon in light mode
+                  ),
+                  onPressed: _clearSearch,
+                )
+              : null,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide( // Add subtle border in light mode
+              color: isDark ? Colors.transparent : Colors.grey[300]!,
+              width: 1,
+            ),
+          ),
+          enabledBorder: OutlineInputBorder( // Add subtle border in light mode
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(
+              color: isDark ? Colors.transparent : Colors.grey[300]!,
+              width: 1,
+            ),
+          ),
+          focusedBorder: OutlineInputBorder( // Add subtle border in light mode
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(
+              color: isDark ? Colors.grey[700]! : Colors.grey[400]!,
+              width: 1.5,
+            ),
+          ),
+          hintStyle: TextStyle(
+            color: isDark ? Colors.grey[500] : Colors.grey[600], // Darker hint text in light mode
+          ),
         ),
-        prefixIcon: Icon(
-          Icons.search,
-          color: isDark ? Colors.grey[400] : Colors.grey[600],
+        style: TextStyle( // Add explicit text style
+          color: isDark ? Colors.grey[200] : Colors.grey[900],
         ),
-        suffixIcon: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (_isLoading)
-              const Padding(
-                padding: EdgeInsets.all(8.0),
-                child: SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
-              )
-            else if (_searchController.text.isNotEmpty)
-              IconButton(
-                icon: const Icon(Icons.search),
-                onPressed: () {
-                  _searchFocusNode.unfocus();
-                  _performSearch(_searchController.text);
-                },
-              ),
-            if (_searchController.text.isNotEmpty)
-              IconButton(
-                icon: const Icon(Icons.clear),
-                onPressed: () {
-                  _searchController.clear();
-                  _clearSearch();
-                  _searchFocusNode.requestFocus();
-                },
-              ),
-          ],
-        ),
+        onChanged: _onSearchChanged,
+        onSubmitted: (value) {
+          if (value.isNotEmpty) {
+            _currentPage = 1;
+            _performSearch(value);
+          }
+        },
       ),
-      style: TextStyle(
-        color: isDark ? Colors.white : Colors.black87,
-      ),
-      onTap: () {
-        _searchFocusNode.requestFocus();
-      },
-      onChanged: _onSearchChanged,
-      onFieldSubmitted: (value) {
-        if (value.isNotEmpty) {
-          _searchFocusNode.unfocus();
-          _performSearch(value);
-        }
-      },
-      textInputAction: TextInputAction.search,
     );
   }
 
   Widget _buildMainContent() {
     if (_cards != null) {
-      return _isLoading
+      return _isLoading && _currentPage == 1
           ? const Center(child: CircularProgressIndicator())
           : _cards!.isEmpty
               ? const Center(child: Text('No cards found'))
@@ -472,6 +491,36 @@ class _SearchScreenState extends State<SearchScreen> {
     );
   }
 
+  Widget _buildPageSizeSelector() {
+    return PopupMenuButton<int>(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('$_pageSize per page'),
+            const Icon(Icons.arrow_drop_down),
+          ],
+        ),
+      ),
+      itemBuilder: (context) => ApiService.pageSizes.map((size) =>  // Now this will work
+        PopupMenuItem(
+          value: size,
+          child: Text('$size per page'),
+        ),
+      ).toList(),
+      onSelected: (value) {
+        setState(() {
+          _pageSize = value;
+          _currentPage = 1;
+          if (_searchController.text.isNotEmpty) {
+            _performSearch(_searchController.text);
+          }
+        });
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
@@ -482,16 +531,14 @@ class _SearchScreenState extends State<SearchScreen> {
         onFocusChange: (hasFocus) {
           if (!hasFocus) {
             _searchFocusNode.unfocus();
-            _setNumberFocusNode.unfocus();
           }
         },
         child: GestureDetector(
           behavior: HitTestBehavior.opaque,
           onTapDown: (_) {
             // Check if tap is not on a text field before unfocusing
-            if (!_searchFocusNode.hasFocus && !_setNumberFocusNode.hasFocus) {
+            if (!_searchFocusNode.hasFocus) {
               _searchFocusNode.unfocus();
-              _setNumberFocusNode.unfocus();
             }
           },
           child: Container(
@@ -619,122 +666,25 @@ class _SearchScreenState extends State<SearchScreen> {
                 Expanded(
                   child: Column(
                     children: [
-                      Container(
-                        color: Theme.of(context).cardColor,
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          children: [
-                            Row(
-                              children: [
-                                Expanded(
-                                  flex: 7,
-                                  child: TextFormField(
-                                    controller: _searchController,
-                                    focusNode: _searchFocusNode,
-                                    // Remove onTapOutside here
-                                    decoration: InputDecoration(
-                                      hintText: 'Search by name...',
-                                      filled: true,
-                                      fillColor: isDark ? Colors.grey[900] : Colors.grey[100],
-                                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                                      border: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(12),
-                                        borderSide: BorderSide.none,
-                                      ),
-                                      prefixIcon: Icon(
-                                        Icons.search,
-                                        color: isDark ? Colors.grey[400] : Colors.grey[600],
-                                      ),
-                                      suffixIcon: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          if (_isLoading)
-                                            const Padding(
-                                              padding: EdgeInsets.all(8.0),
-                                              child: SizedBox(
-                                                width: 20,
-                                                height: 20,
-                                                child: CircularProgressIndicator(strokeWidth: 2),
-                                              ),
-                                            )
-                                          else if (_searchController.text.isNotEmpty)
-                                            IconButton(
-                                              icon: const Icon(Icons.search),
-                                              onPressed: () {
-                                                _searchFocusNode.unfocus();
-                                                _performSearch(_searchController.text);
-                                              },
-                                            ),
-                                          if (_searchController.text.isNotEmpty)
-                                            IconButton(
-                                              icon: const Icon(Icons.clear),
-                                              onPressed: () {
-                                                _searchController.clear();
-                                                _clearSearch();
-                                                _searchFocusNode.requestFocus();
-                                              },
-                                            ),
-                                        ],
-                                      ),
-                                    ),
-                                    style: TextStyle(
-                                      color: isDark ? Colors.white : Colors.black87,
-                                    ),
-                                    onChanged: _onSearchChanged,
-                                    onFieldSubmitted: (value) {
-                                      if (value.isNotEmpty) {
-                                        _performSearch(value);
-                                      }
-                                    },
-                                    textInputAction: TextInputAction.search,
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  flex: 3,
-                                  child: TextFormField(
-                                    controller: _setNumberController,
-                                    focusNode: _setNumberFocusNode,
-                                    // Remove onTapOutside here
-                                    decoration: InputDecoration(
-                                      hintText: 'Set #',
-                                      filled: true,
-                                      fillColor: isDark ? Colors.grey[900] : Colors.grey[100],
-                                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                                      border: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(12),
-                                        borderSide: BorderSide.none,
-                                      ),
-                                      suffixIcon: _setNumberController.text.isNotEmpty
-                                        ? IconButton(
-                                            icon: Icon(
-                                              Icons.clear,
-                                              color: isDark ? Colors.grey[400] : Colors.grey[600],
-                                            ),
-                                            onPressed: () {
-                                              _setNumberController.clear();
-                                              _performSearch(_searchController.text);
-                                            },
-                                          )
-                                        : null,
-                                      hintStyle: TextStyle(
-                                        color: isDark ? Colors.grey[500] : Colors.grey[600],
-                                      ),
-                                    ),
-                                    style: TextStyle(
-                                      color: isDark ? Colors.white : Colors.black87,
-                                    ),
-                                    // ...rest of TextField properties
-                                  ),
-                                ),
-                              ],
-                            ),
-                            _buildSuggestionsList(),
-                          ],
+                      _buildSearchBar(),
+                      if (_cards != null && _totalResults > 0)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                '${_totalResults} cards found',
+                                style: Theme.of(context).textTheme.bodySmall,
+                              ),
+                              _buildPageSizeSelector(),
+                            ],
+                          ),
                         ),
-                      ),
                       Expanded(
-                        child: _buildMainContent(),  // Replace the existing conditional with this
+                        child: _isLoading && _currentPage == 1
+                            ? const Center(child: CircularProgressIndicator())
+                            : _buildMainContent(),
                       ),
                     ],
                   ),
@@ -788,6 +738,7 @@ class _SearchScreenState extends State<SearchScreen> {
     }
 
     return GridView.builder(
+      controller: _scrollController,  // Add scroll controller
       padding: const EdgeInsets.all(8),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 5,
@@ -795,41 +746,51 @@ class _SearchScreenState extends State<SearchScreen> {
         crossAxisSpacing: 8,
         mainAxisSpacing: 8,
       ),
-      itemCount: _cards!.length,
-      itemBuilder: (context, index) => Stack(
-        clipBehavior: Clip.none,
-        children: [
-          CardItem(card: _cards![index]),
-          Positioned(
-            top: -4,
-            right: -4,
-            child: Container(
-              decoration: BoxDecoration(
-                color: Theme.of(context).primaryColor,
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.2),
-                    spreadRadius: 1,
-                    blurRadius: 2,
-                  ),
-                ],
-              ),
-              child: IconButton(
-                iconSize: 20,
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(
-                  minHeight: 24,
-                  minWidth: 24,
+      itemCount: _cards!.length + (_isLoading ? 1 : 0),
+      itemBuilder: (context, index) {
+        if (index == _cards!.length) {
+          return const Center(
+            child: Padding(
+              padding: EdgeInsets.all(16),
+              child: CircularProgressIndicator(),
+            ),
+          );
+        }
+        return Stack(
+          clipBehavior: Clip.none,
+          children: [
+            CardItem(card: _cards![index]),
+            Positioned(
+              top: -4,
+              right: -4,
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Theme.of(context).primaryColor,
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.2),
+                      spreadRadius: 1,
+                      blurRadius: 2,
+                    ),
+                  ],
                 ),
-                icon: const Icon(Icons.add_circle, color: Colors.white),
-                tooltip: 'Add to Collection',
-                onPressed: () => _addToCollection(_cards![index]),
+                child: IconButton(
+                  iconSize: 20,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(
+                    minHeight: 24,
+                    minWidth: 24,
+                  ),
+                  icon: const Icon(Icons.add_circle, color: Colors.white),
+                  tooltip: 'Add to Collection',
+                  onPressed: () => _addToCollection(_cards![index]),
+                ),
               ),
             ),
-          ),
-        ],
-      ),
+          ],
+        );
+      },
     );
   }
 

@@ -10,9 +10,11 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'services/theme_service.dart';
 import 'providers/theme_provider.dart';
+import 'utils/pointer_event_handler.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  SafePointerEventHandler.initializePointerEventHandling();
   
   try {
     await Firebase.initializeApp(

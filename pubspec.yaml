@@ -18,7 +18,7 @@ dependencies:
   
   # UI Components
   shimmer: ^3.0.0
-  cached_network_image: ^3.3.1
+  cached_network_image: ^3.3.1  # Add this for better image caching
   fl_chart: ^0.66.0
   
   # Firebase
@@ -27,7 +27,7 @@ dependencies:
   cloud_firestore: ^4.15.9
   
   # Networking & Data
-  http: ^1.2.0
+  http: ^1.2.0  # Make sure this is included
   crypto: ^3.0.3
 
 dev_dependencies:

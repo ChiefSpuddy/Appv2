@@ -4,6 +4,7 @@ import 'collection_screen.dart';
 import 'home_overview.dart';
 import '../providers/theme_provider.dart';
 import 'package:provider/provider.dart';
+import 'dex_collection_screen.dart';  // Update this import
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -26,6 +27,7 @@ class HomeScreenState extends State<HomeScreen> {
     HomeOverview(),
     SearchScreen(),
     CollectionScreen(),
+    DexCollectionScreen(),  // Update this line
   ];
 
   void onNavItemTapped(int index) {
@@ -56,6 +58,11 @@ class HomeScreenState extends State<HomeScreen> {
             icon: Icon(Icons.collections_outlined),
             selectedIcon: Icon(Icons.collections),
             label: 'Collection',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.catching_pokemon),
+            selectedIcon: Icon(Icons.catching_pokemon),
+            label: 'Dex',  // Changed from 'Pokémon'
           ),
         ],
       ),
