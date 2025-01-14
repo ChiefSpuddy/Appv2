@@ -49,7 +49,7 @@ class HomeScreenState extends State<HomeScreen> {
           NavigationDestination(
             icon: Icon(Icons.home_outlined),
             selectedIcon: Icon(Icons.home),
-            label: 'Home',
+            label: 'Overview',
           ),
           NavigationDestination(
             icon: Icon(Icons.search_outlined),

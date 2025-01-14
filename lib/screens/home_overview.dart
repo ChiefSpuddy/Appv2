@@ -62,7 +62,7 @@ class HomeOverview extends StatelessWidget {
                   ),
                   const SizedBox(height: 16),
                   const Text(
-                    'Manage your Pokémon card collection with ease',
+                    'Manage your expanded TCG collections, Dex, analytics, and more',
                     style: TextStyle(
                       fontSize: 16,
                       color: Colors.white70,
@@ -92,6 +92,33 @@ class HomeOverview extends StatelessWidget {
                           color: Colors.green,
                           description: 'View and manage your cards',
                           onTap: () => _navigateToIndex(context, 2),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Flexible(
+                        child: _buildFeatureCard(
+                          context: context,
+                          title: 'Dex',
+                          icon: Icons.catching_pokemon,
+                          color: Colors.deepOrange,
+                          description: 'Track your Pokémon Dex progress',
+                          onTap: () => _navigateToIndex(context, 3),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Flexible(
+                        child: _buildFeatureCard(
+                          context: context,
+                          title: 'Profile',
+                          icon: Icons.person,
+                          color: Colors.purple,
+                          description: 'View your account details',
+                          onTap: () => _navigateToIndex(context, 4),
                         ),
                       ),
                     ],
