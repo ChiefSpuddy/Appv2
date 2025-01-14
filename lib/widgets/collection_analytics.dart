@@ -30,6 +30,7 @@ class CollectionAnalytics extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final CollectionService _collectionService = CollectionService();
+    
     return FutureBuilder<Map<String, dynamic>>(
       future: _collectionService.getCollectionStats(),
       builder: (context, snapshot) {
@@ -46,28 +47,33 @@ class CollectionAnalytics extends StatelessWidget {
         final stats = snapshot.data!;
         return Container(
           color: Theme.of(context).scaffoldBackgroundColor,
-          child: ListView(
-            padding: const EdgeInsets.all(16),
-            children: [
-              _buildSummaryCards(stats),  // Moved to top
-              const SizedBox(height: 16),
-              _buildHeader(context),
-              const SizedBox(height: 16),
-              _buildPriceHistory(_collectionService),  // Moved to top
-              const SizedBox(height: 24),
-              _buildCollectorScore(stats), // Add this new section
-              const SizedBox(height: 24),
-              _buildMilestones(stats),     // Add this new section
-              const SizedBox(height: 24),
-              _buildBiggestMovers(_collectionService),  // Add this line
-              const SizedBox(height: 24),
-              _buildMonthlyProgress(stats['monthlyStats']),
-              const SizedBox(height: 24),
-              _buildRarityValues(stats['rarityValues'] ?? {}),
-              const SizedBox(height: 24),
-              _buildSetDistribution(stats['setDistribution'] ?? {}),
-              const SizedBox(height: 16),
-            ],
+          child: SingleChildScrollView( // Add this wrapper
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                mainAxisSize: MainAxisSize.min, // Add this
+                children: [
+                  _buildSummaryCards(stats),
+                  const SizedBox(height: 16),
+                  _buildHeader(context),
+                  const SizedBox(height: 16),
+                  _buildPriceHistory(_collectionService),
+                  const SizedBox(height: 24),
+                  _buildCollectorScore(stats),
+                  const SizedBox(height: 24),
+                  _buildMilestones(stats),
+                  const SizedBox(height: 24),
+                  _buildBiggestMovers(_collectionService),
+                  const SizedBox(height: 24),
+                  _buildMonthlyProgress(stats['monthlyStats']),
+                  const SizedBox(height: 24),
+                  _buildRarityValues(stats['rarityValues'] ?? {}),
+                  const SizedBox(height: 24),
+                  _buildSetDistribution(stats['setDistribution'] ?? {}),
+                  const SizedBox(height: 16),
+                ],
+              ),
+            ),
           ),
         );
       },
@@ -84,34 +90,6 @@ class CollectionAnalytics extends StatelessWidget {
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: const Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Collection Analytics',
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
-          ),
-          SizedBox(height: 8),
-          Text(
-            'Track your collection\'s growth and value over time',
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.white70,
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -143,305 +121,606 @@ class CollectionAnalytics extends StatelessWidget {
   }
 
   Widget _buildSummaryCards(Map<String, dynamic> stats) {
-    // Get daily change values with null safety
     final dailyChange = stats['dailyChange']?.toDouble() ?? 0.0;
     final dailyChangePercent = stats['dailyChangePercent']?.toDouble() ?? 0.0;
+    final topRarities = stats['topRarities'] as List<dynamic>? ?? [];
     final isPositive = dailyChange >= 0;
 
     return Column(
       children: [
-        // Portfolio Value Card - Made it more prominent
+        // Portfolio Value Card - More prominent and greener
         Card(
-          elevation: 4, // Increased elevation
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)), // Larger radius
+          elevation: 3,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           child: Container(
             width: double.infinity,
-            padding: const EdgeInsets.all(24), // More padding
+            padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: [Colors.green[600]!, Colors.green[800]!],
+                colors: [
+                  Colors.green.shade600,
+                  Colors.green.shade800,
+                ],
               ),
               borderRadius: BorderRadius.circular(16),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Total Portfolio Value',
-                  style: TextStyle(
-                    fontSize: 18,
-                    color: Colors.white,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  '€${stats['totalValue'].toStringAsFixed(2)}',
-                  style: const TextStyle(
-                    fontSize: 36, // Larger font
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                    letterSpacing: -1,
-                  ),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Total Portfolio Value',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.white70,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            '€${stats['totalValue'].toStringAsFixed(2)}',
+                            style: const TextStyle(
+                              fontSize: 28,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            isPositive ? Icons.trending_up : Icons.trending_down,
+                            color: Colors.white,
+                            size: 16,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            '${isPositive ? '+' : ''}${dailyChangePercent.toStringAsFixed(1)}%',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
                 if (stats['monthlyGrowth'] != null) ...[
                   const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Icon(
-                        stats['monthlyGrowth'] >= 0 
-                            ? Icons.trending_up 
-                            : Icons.trending_down,
-                        color: Colors.white,
-                        size: 20,
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      '${stats['monthlyGrowth'] >= 0 ? '+' : ''}${stats['monthlyGrowth'].toStringAsFixed(1)}% this month',
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 12,
                       ),
-                      const SizedBox(width: 8),
-                      Text(
-                        '${stats['monthlyGrowth'] >= 0 ? '+' : ''}${stats['monthlyGrowth'].toStringAsFixed(1)}% this month',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 16,
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
                 ],
               ],
             ),
           ),
         ),
-        const SizedBox(height: 16),
-        // Stats Grid
-        GridView.count(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          crossAxisCount: 2,
-          childAspectRatio: 1.8,
-          mainAxisSpacing: 12,
-          crossAxisSpacing: 12,
-          children: [
-            _buildInfoCard(
-              'Total Cards',
-              stats['totalCards'].toString(),
-              Icons.credit_card,
-              Colors.blue,
+        const SizedBox(height: 12),
+        // Wrap stats list in a Container with padding
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: SizedBox(
+            height: 80,
+            child: Center( // Center the ListView
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    _buildCompactStatCard(
+                      'Total Cards',
+                      stats['totalCards'].toString(),
+                      Icons.credit_card,
+                      Colors.blue,
+                      subtitle: 'In collection',
+                    ),
+                    _buildCompactStatCard(
+                      'Unique Sets',
+                      stats['uniqueSets']?.toString() ?? '0',
+                      Icons.folder,
+                      Colors.purple,
+                      subtitle: 'Different sets',
+                    ),
+                    _buildCompactStatCard(
+                      '24h Change',
+                      '€${dailyChange.toStringAsFixed(2)}',
+                      isPositive ? Icons.arrow_upward : Icons.arrow_downward,
+                      isPositive ? Colors.green : Colors.red,
+                      subtitle: '${isPositive ? '+' : ''}${dailyChangePercent.toStringAsFixed(1)}%',
+                    ),
+                    _buildCompactStatCard(
+                      'Top Rarity',
+                      topRarities.isNotEmpty ? '${topRarities[0]['count']}' : '0',
+                      Icons.stars,
+                      Colors.amber,
+                      subtitle: topRarities.isNotEmpty 
+                        ? '${topRarities[0]['name']}'
+                        : 'No cards',
+                    ),
+                  ],
+                ),
+              ),
             ),
-            _buildInfoCard(
-              'Unique Sets',
-              stats['uniqueSets']?.toString() ?? '0',
-              Icons.folder,
-              Colors.purple,
-            ),
-            _buildInfoCard(
-              'Daily Change',
-              '€${dailyChange.toStringAsFixed(2)}',
-              isPositive ? Icons.arrow_upward : Icons.arrow_downward,
-              isPositive ? Colors.green : Colors.red,
-              subtitle: '${isPositive ? '+' : ''}${dailyChangePercent.toStringAsFixed(1)}%',
-            ),
-            _buildInfoCard(
-              'Rarest Cards',
-              '${(stats['rarityCount'] as Map<String, dynamic>?)?['Secret Rare'] ?? 0}',
-              Icons.stars,
-              Colors.deepPurple,
-              subtitle: 'Secret Rares',
-            ),
-          ],
+          ),
         ),
       ],
     );
   }
 
-  Widget _buildInfoCard(
-    String title, 
-    String value, 
-    IconData icon, 
-    MaterialColor color, 
+  // Update the compact stat card to have fixed dimensions
+  Widget _buildCompactStatCard(
+    String title,
+    String value,
+    IconData icon,
+    MaterialColor color,
     {String? subtitle}
   ) {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [color[50]!, color[100]!],
+    return Builder(
+      builder: (context) {
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+        
+        return Tooltip(
+          message: '$title: $value${subtitle != null ? '\n$subtitle' : ''}',
+          child: Card(
+            margin: const EdgeInsets.symmetric(horizontal: 4),
+            elevation: 2,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(12),
+              onTap: () {
+                // Show detailed info in a bottom sheet
+                showModalBottomSheet(
+                  context: context,
+                  builder: (context) => Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(icon, size: 48, color: color),
+                        const SizedBox(height: 16),
+                        Text(
+                          title,
+                          style: const TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          value,
+                          style: TextStyle(
+                            fontSize: 24,
+                            color: color,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        if (subtitle != null) ...[
+                          const SizedBox(height: 8),
+                          Text(
+                            subtitle,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              color: Colors.grey,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                );
+              },
+              child: Container(
+                width: 85,
+                height: 70,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: isDark ? [
+                      color[900]!.withOpacity(0.5),
+                      color[800]!.withOpacity(0.3),
+                    ] : [
+                      color[50]!,
+                      color[100]!,
+                    ],
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(8),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        icon,
+                        size: 16,
+                        color: isDark ? color[300] : color[700],
+                      ),
+                      const SizedBox(height: 2), // Reduced spacing
+                      Text(
+                        value,
+                        style: TextStyle(
+                          fontSize: 12, // Smaller font
+                          fontWeight: FontWeight.bold,
+                          color: isDark ? color[300] : color[900],
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      Text(
+                        title,
+                        style: TextStyle(
+                          fontSize: 9, // Smaller font
+                          color: isDark ? color[400] : color[700],
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
           ),
-          borderRadius: BorderRadius.circular(12),
+        );
+      },
+    );
+  }
+
+  Widget _buildSetDistribution(Map<String, dynamic> setData) {
+    if (setData.isEmpty) {
+      return _buildEmptyState('No set data available');
+    }
+
+    return Builder(builder: (context) {
+      final isDark = Theme.of(context).brightness == Brightness.dark;
+      
+      return StatefulBuilder(
+        builder: (context, setState) {
+          bool showValueDistribution = false;
+          
+          // Safely extract data and handle types
+          final Map<String, int> countData = Map<String, int>.from(
+            Map.fromEntries(
+              setData.entries.where((e) => e.key != 'setValues' && e.value is int)
+            )
+          );
+          
+          final Map<String, double> valueData = Map<String, double>.from(
+            (setData['setValues'] as Map<dynamic, dynamic>? ?? {}).map(
+              (key, value) => MapEntry(key.toString(), (value as num).toDouble())
+            )
+          );
+
+          // Create sorted lists based on the view type
+          List<MapEntry<String, dynamic>> sortedSets;
+          dynamic total;
+          
+          if (showValueDistribution) {
+            var entries = valueData.entries.toList();
+            entries.sort((a, b) => b.value.compareTo(a.value));
+            sortedSets = entries;
+            total = entries.fold<double>(0, (sum, item) => sum + item.value);
+          } else {
+            var entries = countData.entries.toList();
+            entries.sort((a, b) => b.value.compareTo(a.value));
+            sortedSets = entries;
+            total = entries.fold<int>(0, (sum, item) => sum + item.value);
+          }
+
+          final topSets = sortedSets.take(8).toList();
+          final sections = <PieChartSectionData>[];
+          
+          for (var i = 0; i < topSets.length; i++) {
+            final value = showValueDistribution
+                ? topSets[i].value
+                : topSets[i].value.toDouble();
+            final percentage = ((value / total) * 100).round();
+            
+            sections.add(
+              PieChartSectionData(
+                value: value,
+                title: percentage >= 10 ? '$percentage%' : '',
+                titleStyle: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                  shadows: [Shadow(color: Colors.black26, blurRadius: 4)],
+                ),
+                radius: 100,
+                color: _modernChartColors[i % _modernChartColors.length],
+                showTitle: true,
+                badgeWidget: percentage < 10 ? null : _buildBadge(percentage),
+                badgePositionPercentageOffset: 0.9,
+              ),
+            );
+          }
+
+          return Card(
+            elevation: 2,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: _buildSectionHeader('Set Distribution', color: _modernChartColors[0]),
+                      ),
+                      ToggleButtons(
+                        isSelected: [!showValueDistribution, showValueDistribution],
+                        onPressed: (index) {
+                          setState(() => showValueDistribution = index == 1);
+                        },
+                        borderRadius: BorderRadius.circular(8),
+                        constraints: const BoxConstraints(minWidth: 60, minHeight: 32),
+                        children: const [
+                          Text(' Count '),
+                          Text(' Value '),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    children: [
+                      SizedBox(
+                        height: 300, // Fixed height
+                        child: Row(
+                          children: [
+                            Expanded(
+                              flex: 2,
+                              child: PieChart(
+                                PieChartData(
+                                  sections: sections,
+                                  sectionsSpace: 2,
+                                  centerSpaceRadius: 40,
+                                  centerSpaceColor: isDark ? Theme.of(context).cardColor : Colors.white,
+                                  pieTouchData: PieTouchData(enabled: false), // Disable touch interactions
+                                  borderData: FlBorderData(show: false),
+                                ),
+                              ),
+                            ),
+                            Expanded(
+                              child: SingleChildScrollView(
+                                child: _buildSetLegend(
+                                  context, 
+                                  topSets,
+                                  total,
+                                  showValueDistribution,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Total Cards: $total',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                              color: isDark ? Colors.white70 : Colors.black54,
+                            ),
+                          ),
+                          TextButton(
+                            onPressed: () => _showAllSets(context, sortedSets),
+                            child: const Text('View All Sets'),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      );
+    });
+  }
+
+  Widget _buildBadge(int percentage) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+      decoration: BoxDecoration(
+        color: Colors.black54,
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Text(
+        '$percentage%',
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 10,
+          fontWeight: FontWeight.bold,
         ),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      ),
+    );
+  }
+
+  Widget _buildSetLegend(
+    BuildContext context,
+    List<MapEntry<String, dynamic>> sets,
+    dynamic total,
+    bool showValue,
+  ) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: sets.asMap().entries.map((entry) {
+        final index = entry.key;
+        final set = entry.value;
+        final value = set.value;
+        final percentage = ((value / total) * 100).toStringAsFixed(1);
+        
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4),
+          child: InkWell(
+            onTap: () => _showSetDetailsTyped(context, set, showValue),
+            borderRadius: BorderRadius.circular(4),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 12,
+                  height: 12,
+                  decoration: BoxDecoration(
+                    color: _modernChartColors[index % _modernChartColors.length],
+                    borderRadius: BorderRadius.circular(3),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        set.key,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      Text(
+                        showValue
+                            ? '€${value.toStringAsFixed(2)} · $percentage%'
+                            : '${value} cards · $percentage%',
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: Theme.of(context).textTheme.bodySmall?.color,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  void _showSetDetailsTyped(
+    BuildContext context, 
+    MapEntry<String, dynamic> set,
+    bool isValueView,
+  ) {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(16),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(icon, size: 24, color: color[700]),
+            Text(
+              set.key,
+              style: const TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
             const SizedBox(height: 8),
             Text(
-              value,
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: color[900],
-              ),
-              textAlign: TextAlign.center,
+              isValueView
+                  ? 'Total Value: €${(set.value as double).toStringAsFixed(2)}'
+                  : 'Number of Cards: ${set.value}',
             ),
-            Text(
-              title,
-              style: TextStyle(
-                fontSize: 12,
-                color: color[700],
-                fontWeight: FontWeight.w500,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            if (subtitle != null) ...[
-              const SizedBox(height: 2),
-              Text(
-                subtitle,
-                style: TextStyle(
-                  fontSize: 11,
-                  color: color[700],
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ],
           ],
         ),
       ),
     );
   }
 
-  Widget _buildSetDistribution(Map<String, int> setData) {
-    if (setData.isEmpty) {
-      return _buildEmptyState('No set data available');
-    }
-
-    return Builder(builder: (context) {  // Add this Builder widget
-      final isDark = Theme.of(context).brightness == Brightness.dark;
-      final sortedSets = setData.entries.toList()
-        ..sort((a, b) => b.value.compareTo(a.value));
-      
-      final topSets = sortedSets.take(8).toList();
-      final total = topSets.fold<int>(0, (sum, item) => sum + item.value);
-      final sections = <PieChartSectionData>[];
-      
-      for (var i = 0; i < topSets.length; i++) {
-        final percentage = (topSets[i].value / total * 100).round();
-        sections.add(
-          PieChartSectionData(
-            value: topSets[i].value.toDouble(),
-            title: '$percentage%',
-            titleStyle: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-              shadows: [
-                Shadow(
-                  color: Colors.black26,
-                  blurRadius: 4,
-                ),
-              ],
-            ),
-            radius: 100,
-            color: _modernChartColors[i % _modernChartColors.length],
-            showTitle: percentage >= 5, // Only show labels for segments >= 5%
-          ),
-        );
-      }
-
-      return Card(
-        elevation: 2,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+  void _showAllSets(BuildContext context, List<MapEntry<String, dynamic>> allSets) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) => DraggableScrollableSheet(
+        initialChildSize: 0.7,
+        minChildSize: 0.5,
+        maxChildSize: 0.95,
+        expand: false,
+        builder: (context, scrollController) => Column(
           children: [
-            _buildSectionHeader('Set Distribution', color: _modernChartColors[0]),
-            Container(
+            Padding(
               padding: const EdgeInsets.all(16),
-              child: Column(
-                children: [
-                  AspectRatio(
-                    aspectRatio: 1.5,
-                    child: Row(
-                      children: [
-                        Expanded(
-                          flex: 2,
-                          child: _buildChart(context, sections),  // Pass context here
-                        ),
-                        Expanded(
-                          child: Container(
-                            padding: const EdgeInsets.only(left: 16),
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                ...topSets.asMap().entries.map((entry) {
-                                  final index = entry.key;
-                                  final set = entry.value;
-                                  final percentage = 
-                                      (set.value / total * 100).toStringAsFixed(1);
-                                  return Padding(
-                                    padding: const EdgeInsets.symmetric(vertical: 4),
-                                    child: Row(
-                                      children: [
-                                        Container(
-                                          width: 12,
-                                          height: 12,
-                                          decoration: BoxDecoration(
-                                            color: _modernChartColors[index % _modernChartColors.length],
-                                            borderRadius: BorderRadius.circular(3),
-                                          ),
-                                        ),
-                                        const SizedBox(width: 8),
-                                        Expanded(
-                                          child: Text(
-                                            set.key,
-                                            style: const TextStyle(
-                                              fontSize: 12,
-                                              fontWeight: FontWeight.w500,
-                                            ),
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                        ),
-                                        const SizedBox(width: 4),
-                                        Text(
-                                          '$percentage%',
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.bold,
-                                            color: isDark ? Colors.white70 : Colors.black54,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  );
-                                }).toList(),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
+              child: const Text(
+                'All Sets',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            Expanded(
+              child: ListView.builder(
+                controller: scrollController,
+                itemCount: allSets.length,
+                itemBuilder: (context, index) {
+                  final set = allSets[index];
+                  return ListTile(
+                    title: Text(set.key),
+                    trailing: Text(
+                      set.value is double
+                          ? '€${(set.value as double).toStringAsFixed(2)}'
+                          : '${set.value} cards'
                     ),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Total Cards: $total',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                      color: isDark ? Colors.white70 : Colors.black54,
-                    ),
-                  ),
-                ],
+                    onTap: () => _showSetDetailsTyped(context, set, set.value is double),
+                  );
+                },
               ),
             ),
           ],
         ),
-      );
-    });
+      ),
+    );
   }
 
   Widget _buildPriceHistory(CollectionService service) {
@@ -468,8 +747,7 @@ class CollectionAnalytics extends StatelessWidget {
               return Card(
                 elevation: 2,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                child: Container(
-                  height: 300,
+                child: Padding(
                   padding: const EdgeInsets.all(16),
                   child: const Center(
                     child: Column(
@@ -676,8 +954,7 @@ class CollectionAnalytics extends StatelessWidget {
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Container(
-        height: 200,
+      child: Padding(
         padding: const EdgeInsets.all(16),
         child: Center(
           child: Column(
@@ -1032,6 +1309,8 @@ class CollectionAnalytics extends StatelessWidget {
   Widget _buildMilestones(Map<String, dynamic> stats) {
     final nextMilestone = stats['nextMilestone'] as Map<String, dynamic>?;
     final recentMilestones = stats['recentMilestones'] as List<dynamic>? ?? [];
+    final totalCards = stats['totalCards'] as int? ?? 0;
+    final targetCards = nextMilestone?['target'] as int? ?? 100;
 
     return Card(
       elevation: 2,
@@ -1041,17 +1320,40 @@ class CollectionAnalytics extends StatelessWidget {
         children: [
           _buildSectionHeader('Collection Milestones', color: _modernChartColors[4]),
           if (nextMilestone != null)
-            Container(
+            Padding(
               padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Next Milestone',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Next Milestone',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: _modernChartColors[4].withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          '$totalCards/$targetCards cards',
+                          style: TextStyle(
+                            color: _modernChartColors[4],
+                            fontWeight: FontWeight.w500,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 8),
                   LinearProgressIndicator(

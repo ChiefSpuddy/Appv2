@@ -27,11 +27,15 @@ class _DexCollectionScreenState extends State<DexCollectionScreen> {
   String _collectionFilter = 'All'; // 'All', 'Collected', 'Missing'
   String _sortBy = 'Number'; // 'Number', 'Name', 'Collection'
   bool _sortAscending = true;
+  int? _collectedCount;
+  double? _totalValue;
+  bool _showStats = true;  // Add this line
 
   @override
   void initState() {
     super.initState();
     _loadPokemon();
+    _loadCollectionStats();
   }
 
   Future<void> _loadPokemon() async {
@@ -43,6 +47,34 @@ class _DexCollectionScreenState extends State<DexCollectionScreen> {
         _filterPokemon(_searchController.text);
         _isLoading = false;
       });
+    }
+  }
+
+  Future<void> _loadCollectionStats() async {
+    try {
+      int collected = 0;
+      double total = 0.0;
+      
+      // Get stats for all Pokemon
+      final futures = _allPokemon.map((name) => _pokemonService.getPokemonStats(name));
+      final results = await Future.wait(futures);
+      
+      for (final stats in results) {
+        final cardCount = (stats['cardCount'] as num?)?.toInt() ?? 0;
+        if (cardCount > 0) {
+          collected++;
+          total += (stats['totalValue'] as num?)?.toDouble() ?? 0.0;
+        }
+      }
+
+      if (mounted) {
+        setState(() {
+          _collectedCount = collected;
+          _totalValue = total;
+        });
+      }
+    } catch (e) {
+      print('Error loading collection stats: $e');
     }
   }
 
@@ -119,6 +151,8 @@ class _DexCollectionScreenState extends State<DexCollectionScreen> {
           _filteredPokemon = filtered;
           _isLoading = false;
         });
+        // Update stats after filtering
+        await _updateStatsForFiltered();
       }
     } catch (e) {
       print('Error filtering pokemon: $e');
@@ -128,6 +162,29 @@ class _DexCollectionScreenState extends State<DexCollectionScreen> {
           _isLoading = false;
         });
       }
+    }
+  }
+
+  Future<void> _updateStatsForFiltered() async {
+    int collected = 0;
+    double total = 0.0;
+    
+    final futures = _filteredPokemon.map((name) => _pokemonService.getPokemonStats(name));
+    final results = await Future.wait(futures);
+    
+    for (final stats in results) {
+      final cardCount = (stats['cardCount'] as num?)?.toInt() ?? 0;
+      if (cardCount > 0) {
+        collected++;
+        total += (stats['totalValue'] as num?)?.toDouble() ?? 0.0;
+      }
+    }
+
+    if (mounted) {
+      setState(() {
+        _collectedCount = collected;
+        _totalValue = total;
+      });
     }
   }
 
@@ -734,6 +791,75 @@ class _DexCollectionScreenState extends State<DexCollectionScreen> {
     return colors[type.toLowerCase()] ?? Colors.grey;
   }
 
+  Widget _buildDexStats() {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        GestureDetector(
+          onTap: () => setState(() => _showStats = !_showStats),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Row(
+              children: [
+                const Text(
+                  'Collection Stats',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
+                const Spacer(),
+                Icon(_showStats ? Icons.expand_less : Icons.expand_more),
+              ],
+            ),
+          ),
+        ),
+        if (_showStats)
+          Container(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                _buildStatCard(
+                  'Total Pokémon',
+                  _allPokemon.length.toString(),
+                  Icons.catching_pokemon,
+                ),
+                _buildStatCard(
+                  'Collected',
+                  '${_collectedCount ?? 0}',
+                  Icons.check_circle,
+                  color: Colors.green,
+                ),
+                _buildStatCard(
+                  'Total Value',
+                  '€${_totalValue?.toStringAsFixed(2) ?? '0.00'}',
+                  Icons.euro,
+                  color: Colors.blue,
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildStatCard(String label, String value, IconData icon, {Color? color}) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(8),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, color: color),
+            Text(value, style: const TextStyle(fontWeight: FontWeight.bold)),
+            Text(label, style: Theme.of(context).textTheme.bodySmall),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -778,6 +904,7 @@ class _DexCollectionScreenState extends State<DexCollectionScreen> {
       ),
       body: Column(
         children: [
+          _buildDexStats(),
           Padding(
             padding: const EdgeInsets.all(8.0),
             child: TextField(

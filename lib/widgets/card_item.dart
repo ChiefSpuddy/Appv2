@@ -208,13 +208,13 @@ class _CardItemState extends State<CardItem> with SingleTickerProviderStateMixin
                                   ),
                                 ),
                                 padding: const EdgeInsets.symmetric(
-                                  vertical: 12,
+                                  vertical: 6, // Reduced from 12
                                   horizontal: 8,
                                 ),
                                 child: Text(
                                   '€${widget.card.price!.toStringAsFixed(2)}',
                                   style: TextStyle(
-                                    fontSize: 18,
+                                    fontSize: 14, // Reduced from 18
                                     fontWeight: FontWeight.bold,
                                     letterSpacing: 0.5,
                                     color: isDark 

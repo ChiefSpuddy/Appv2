@@ -383,7 +383,7 @@ class CustomCollectionsScreen extends StatelessWidget {
           ),
           TextButton(
             child: const Text('Save'),
-            onPressed: () {
+            onPressed: () async {
               if (formKey.currentState?.validate() == true) {
                 formKey.currentState?.save();
                 Navigator.pop(context, true);
@@ -394,10 +394,11 @@ class CustomCollectionsScreen extends StatelessWidget {
       ),
     );
 
-    if (result == true && context.mounted) {
+    if (result == true) {
       try {
         await service.updateCollection(collection.id, name, description);
         if (context.mounted) {
+          Navigator.pop(context); // Close any remaining dialogs
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Collection updated')),
           );
@@ -405,7 +406,10 @@ class CustomCollectionsScreen extends StatelessWidget {
       } catch (e) {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Failed to update collection')),
+            const SnackBar(
+              content: Text('Failed to update collection'),
+              backgroundColor: Colors.red,
+            ),
           );
         }
       }
@@ -462,41 +466,61 @@ class CustomCollectionsScreen extends StatelessWidget {
     CustomCollection collection,
     CollectionService service
   ) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete Collection?'),
-        content: Text(
-          'Are you sure you want to delete "${collection.name}"? '
-          'This action cannot be undone.'
+    try {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Delete Collection?'),
+          content: Text(
+            'Are you sure you want to delete "${collection.name}"?\n'
+            'This action cannot be undone.'
+          ),
+          actions: [
+            TextButton(
+              child: const Text('Cancel'),
+              onPressed: () => Navigator.pop(context, false),
+            ),
+            TextButton(
+              style: TextButton.styleFrom(
+                foregroundColor: Colors.red,
+              ),
+              child: const Text('Delete'),
+              onPressed: () => Navigator.pop(context, true),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            child: const Text('Cancel'),
-            onPressed: () => Navigator.pop(context, false),
-          ),
-          TextButton(
-            child: const Text('Delete', style: TextStyle(color: Colors.red)),
-            onPressed: () => Navigator.pop(context, true),
-          ),
-        ],
-      ),
-    );
+      );
 
-    if (confirmed == true && context.mounted) {
-      try {
+      if (confirmed == true) {
+        // Show loading indicator
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Deleting collection...'),
+              duration: Duration(seconds: 1),
+            ),
+          );
+        }
+
         await service.deleteCollection(collection.id);
+        
         if (context.mounted) {
+          Navigator.pop(context); // Close the menu
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Deleted "${collection.name}"')),
+            SnackBar(
+              content: Text('Deleted "${collection.name}"'),
+            ),
           );
         }
-      } catch (e) {
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Failed to delete collection')),
-          );
-        }
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to delete collection'),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
     }
   }

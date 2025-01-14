@@ -3,6 +3,7 @@ import '../models/card_model.dart';
 import '../services/api_service.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'dart:math' show min, max;
+import '../services/collection_service.dart'; // Add this import
 
 class CardDetailsScreen extends StatefulWidget {
   final TcgCard card;
@@ -20,13 +21,58 @@ class CardDetailsScreen extends StatefulWidget {
 
 class _CardDetailsState extends State<CardDetailsScreen> {
   final _apiService = ApiService();
+  final _collectionService = CollectionService(); // Add this
   Map<String, dynamic>? _priceData;
   bool _isLoading = true;
+  bool _isInCollection = false; // Add this
 
   @override
   void initState() {
     super.initState();
     _loadData();
+    _checkCollectionStatus(); // Add this
+  }
+
+  // Add this method
+  Future<void> _checkCollectionStatus() async {
+    if (widget.docId != null) {
+      setState(() => _isInCollection = true);
+    } else {
+      final exists = await _collectionService.cardExists(widget.card.id);
+      if (mounted) setState(() => _isInCollection = exists);
+    }
+  }
+
+  // Add this method
+  Future<void> _toggleCollection() async {
+    try {
+      if (_isInCollection) {
+        if (widget.docId != null) {
+          await _collectionService.removeCard(widget.docId!);
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Removed ${widget.card.name} from collection')),
+            );
+          }
+        }
+      } else {
+        await _collectionService.addCard(widget.card);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Added ${widget.card.name} to collection')),
+          );
+        }
+      }
+      if (mounted) {
+        setState(() => _isInCollection = !_isInCollection);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to update collection')),
+        );
+      }
+    }
   }
 
   Future<void> _loadData() async {
@@ -117,13 +163,42 @@ class _CardDetailsState extends State<CardDetailsScreen> {
           ],
           if (marketUrl != null) ...[
             const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: () => _launchUrl(marketUrl),
-                icon: const Icon(Icons.shopping_cart),
-                label: const Text('View on Cardmarket'),
-              ),
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () => _launchUrl(marketUrl),
+                    icon: const Icon(Icons.shopping_cart),
+                    label: const Text('View on Cardmarket'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: isDark ? Colors.green[700] : Colors.green[600],
+                      foregroundColor: Colors.white,
+                      elevation: 2,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () => _launchUrl(_getEbaySearchUrl()),
+                    icon: const Icon(Icons.search),
+                    label: const Text('Search on eBay'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF0064D2),
+                      foregroundColor: Colors.white,
+                      elevation: 2,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ],
         ],
@@ -133,7 +208,7 @@ class _CardDetailsState extends State<CardDetailsScreen> {
 
   Future<void> _launchUrl(String url) async {
     if (await canLaunchUrl(Uri.parse(url))) {
-      await launchUrl(Uri.parse(url));
+      await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
     }
   }
 
@@ -171,6 +246,11 @@ class _CardDetailsState extends State<CardDetailsScreen> {
       default:
         return '';
     }
+  }
+
+  String _getEbaySearchUrl() {
+    final searchQuery = Uri.encodeComponent('${widget.card.name} ${widget.card.setName} pokemon card');
+    return 'https://www.ebay.com/sch/i.html?_nkw=$searchQuery';
   }
 
   Widget _buildPriceRow(String label, dynamic price, {bool isHighlighted = false}) {
@@ -367,6 +447,45 @@ class _CardDetailsState extends State<CardDetailsScreen> {
               ),
             ),
           ],
+        ),
+      ),
+      floatingActionButton: Container(
+        height: 40,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: (_isInCollection ? Colors.red : Colors.green)
+                  .withOpacity(0.3),
+              blurRadius: 4,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: FloatingActionButton.extended(
+          onPressed: _toggleCollection,
+          icon: Icon(
+            _isInCollection ? Icons.remove : Icons.add,
+            size: 18,
+          ),
+          label: Text(
+            _isInCollection ? 'Remove' : 'Add to Collection',
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          backgroundColor: _isInCollection 
+            ? Colors.red 
+            : Colors.green,
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          extendedPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 0,
+          ),
         ),
       ),
     );

@@ -262,165 +262,394 @@ class _CollectionGridState extends State<CollectionGrid> {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        // Add this new Container for the Collections button
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          child: Row(
-            children: [
-              Expanded(
-                child: ElevatedButton.icon(
-                  icon: const Icon(Icons.collections_bookmark),
-                  label: const Text('My Custom Sets'), // Changed from 'My Collections'
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    backgroundColor: Theme.of(context).primaryColor,
-                    foregroundColor: Colors.white,
-                  ),
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const CustomCollectionsScreen(),
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ],
-          ),
-        ),
-        if (_selectionMode) ...[
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            color: Theme.of(context).primaryColor.withOpacity(0.1),
-            child: Row(
-              children: [
-                Text(
-                  '${_selectedCards.length} selected',
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
-                const Spacer(),
-                TextButton.icon(
-                  icon: const Icon(Icons.add),
-                  label: const Text('Add to Collection'),
-                  onPressed: _showAddToCollectionDialog,
-                ),
-                IconButton(
-                  icon: const Icon(Icons.close),
-                  onPressed: _toggleSelectionMode,
-                ),
-              ],
-            ),
-          ),
-        ],
-        Padding(
-          padding: const EdgeInsets.all(8.0),
-          child: TextField(
-            focusNode: _searchFocusNode,
-            decoration: const InputDecoration(
-              hintText: 'Search collection...',
-              prefixIcon: Icon(Icons.search),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.all(Radius.circular(8)),
-              ),
-              contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            ),
-            onTapOutside: (event) {
-              _searchFocusNode.unfocus();
-            },
-            onChanged: (value) {
-              // TODO: Implement search functionality
-            },
-          ),
-        ),
-        Expanded(
-          child: StreamBuilder<QuerySnapshot>(
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Scaffold(
+      body: Column(
+        children: [
+          // Portfolio Value Card - Streamlined design
+          StreamBuilder<QuerySnapshot>(
             stream: _service.getCards(),
             builder: (context, snapshot) {
               if (snapshot.hasError) {
-                return Center(child: Text('Error: ${snapshot.error}'));
+                return const SizedBox.shrink();
               }
 
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator());
-              }
-
-              if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                return const Center(
-                  child: Text('Add cards to your collection'),
-                );
-              }
-
-              return GridView.builder(
-                padding: const EdgeInsets.all(8),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 3,
-                  childAspectRatio: 0.75,
-                  crossAxisSpacing: 8,
-                  mainAxisSpacing: 8,
-                ),
-                itemCount: snapshot.data!.docs.length,
-                itemBuilder: (context, index) {
-                  final doc = snapshot.data!.docs[index];
+              double totalValue = 0;
+              if (snapshot.hasData) {
+                for (var doc in snapshot.data!.docs) {
                   final data = doc.data() as Map<String, dynamic>;
-                  final card = TcgCard(
-                    id: data['id'],
-                    name: data['name'],
-                    imageUrl: data['imageUrl'],
-                    setName: data['setName'],
-                    rarity: data['rarity'],
-                    price: data['price']?.toDouble(),
-                  );
-                  
-                  return GestureDetector(
-                    onLongPress: () {
-                      if (_selectionMode) {
-                        _toggleSelectionMode();
-                      } else {
-                        _showCardOptionsDialog(doc.id, card);
-                      }
-                    },
-                    onTap: () {
-                      if (_selectionMode) {
-                        _toggleCardSelection(doc.id);
-                      }
-                    },
-                    child: Stack(
-                      children: [
-                        CardItem(card: card),
-                        if (_selectionMode)
-                          Positioned(
-                            top: 8,
-                            right: 8,
-                            child: Container(
-                              decoration: BoxDecoration(
-                                color: _selectedCards.contains(doc.id)
-                                    ? Theme.of(context).primaryColor
-                                    : Colors.grey.withOpacity(0.5),
-                                shape: BoxShape.circle,
-                              ),
-                              padding: const EdgeInsets.all(4),
-                              child: Icon(
-                                _selectedCards.contains(doc.id)
-                                    ? Icons.check
-                                    : Icons.check_box_outline_blank,
-                                size: 16,
-                                color: Colors.white,
+                  totalValue += (data['price'] as num?)?.toDouble() ?? 0;
+                }
+              }
+
+              return Container(
+                margin: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: isDark 
+                              ? [Colors.green.shade900, Colors.green.shade800]
+                              : [Colors.green.shade500, Colors.green.shade400],
+                          ),
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.1),
+                              blurRadius: 4,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Portfolio Value',
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w500,
+                                      color: isDark ? Colors.green.shade100 : Colors.white,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    '€${totalValue.toStringAsFixed(2)}',
+                                    style: const TextStyle(
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
-                          ),
-                      ],
+                            if (snapshot.hasData)
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(0.2),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Text(
+                                  '${snapshot.data!.docs.length} Cards',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
                     ),
-                  );
-                },
-
+                    const SizedBox(width: 8),
+                    Container(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: isDark 
+                            ? [Colors.blueGrey.shade800, Colors.blueGrey.shade700]
+                            : [Theme.of(context).primaryColor, Theme.of(context).primaryColor.withOpacity(0.8)],
+                        ),
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.1),
+                            blurRadius: 4,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(12),
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const CustomCollectionsScreen(),
+                              ),
+                            );
+                          },
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 8,
+                            ),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(
+                                  Icons.collections_bookmark,
+                                  color: Colors.white,
+                                  size: 20,
+                                ),
+                                const SizedBox(height: 4),
+                                const Text(
+                                  'Custom Sets',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               );
             },
           ),
-        ),
-      ],
+
+          // Remove the separate Custom Sets button since it's now integrated above
+
+          if (_selectionMode) ...[
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              color: Theme.of(context).primaryColor.withOpacity(0.1),
+              child: Row(
+                children: [
+                  Text(
+                    '${_selectedCards.length} selected',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: isDark ? Colors.white : Colors.black87,
+                    ),
+                  ),
+                  const Spacer(),
+                  TextButton.icon(
+                    icon: const Icon(Icons.add),
+                    label: const Text('Add to Collection'),
+                    onPressed: _selectedCards.isEmpty ? null : _showAddToCollectionDialog,
+                  ),
+                  TextButton.icon(
+                    icon: const Icon(Icons.delete, color: Colors.red),
+                    label: const Text('Delete', style: TextStyle(color: Colors.red)),
+                    onPressed: _selectedCards.isEmpty ? null : () => _showBulkDeleteConfirmation(context),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: _toggleSelectionMode,
+                  ),
+                ],
+              ),
+            ),
+          ],
+          
+          // Streamlined search bar
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+            child: TextField(
+              focusNode: _searchFocusNode,
+              decoration: InputDecoration(
+                hintText: 'Search collection...',
+                prefixIcon: const Icon(Icons.search, size: 20),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(
+                    color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
+                  ),
+                ),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                isDense: true, // Makes the search bar more compact
+              ),
+              style: TextStyle(
+                color: isDark ? Colors.white : Colors.black87,
+              ),
+              onTapOutside: (event) => _searchFocusNode.unfocus(),
+              onChanged: (value) {
+                // TODO: Implement search functionality
+              },
+            ),
+          ),
+
+          // Rest of the collection grid
+          Expanded(
+            child: StreamBuilder<QuerySnapshot>(
+              stream: _service.getCards(),
+              builder: (context, snapshot) {
+                if (snapshot.hasError) {
+                  return Center(child: Text('Error: ${snapshot.error}'));
+                }
+
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
+                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                  return const Center(
+                    child: Text('Add cards to your collection'),
+                  );
+                }
+
+                return GridView.builder(
+                  padding: const EdgeInsets.all(8),
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 3,
+                    childAspectRatio: 0.75,
+                    crossAxisSpacing: 8,
+                    mainAxisSpacing: 8,
+                  ),
+                  itemCount: snapshot.data!.docs.length,
+                  itemBuilder: (context, index) {
+                    final doc = snapshot.data!.docs[index];
+                    final data = doc.data() as Map<String, dynamic>;
+                    final card = TcgCard(
+                      id: data['id'],
+                      name: data['name'],
+                      imageUrl: data['imageUrl'],
+                      setName: data['setName'],
+                      rarity: data['rarity'],
+                      price: data['price']?.toDouble(),
+                    );
+                    
+                    return GestureDetector(
+                      onLongPress: () {
+                        setState(() {
+                          if (!_selectionMode) {
+                            _selectionMode = true;
+                            _selectedCards.add(doc.id);
+                          } else {
+                            _toggleCardSelection(doc.id);
+                          }
+                        });
+                      },
+                      onTap: () {
+                        if (_selectionMode) {
+                          _toggleCardSelection(doc.id);
+                        } else {
+                          _showCardOptionsDialog(doc.id, card);
+                        }
+                      },
+                      child: Stack(
+                        children: [
+                          CardItem(card: card),
+                          if (_selectionMode)
+                            Positioned.fill(
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  color: _selectedCards.contains(doc.id)
+                                      ? Theme.of(context).primaryColor.withOpacity(0.3)
+                                      : Colors.transparent,
+                                  border: Border.all(
+                                    color: _selectedCards.contains(doc.id)
+                                        ? Theme.of(context).primaryColor
+                                        : Colors.transparent,
+                                    width: 2,
+                                  ),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: _selectedCards.contains(doc.id)
+                                    ? const Center(
+                                        child: Icon(
+                                          Icons.check_circle,
+                                          color: Colors.white,
+                                          size: 32,
+                                        ),
+                                      )
+                                    : null,
+                              ),
+                            ),
+                        ],
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+      floatingActionButton: !_selectionMode ? FloatingActionButton(
+        onPressed: () {
+          setState(() {
+            _selectionMode = true;
+          });
+        },
+        child: const Icon(Icons.select_all),
+      ) : null,
     );
+  }
+
+  Future<void> _showBulkDeleteConfirmation(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Cards'),
+        content: Text(
+          'Are you sure you want to delete ${_selectedCards.length} cards from your collection?\n'
+          'This action cannot be undone.'
+        ),
+        actions: [
+          TextButton(
+            child: const Text('Cancel'),
+            onPressed: () => Navigator.pop(context, false),
+          ),
+          TextButton(
+            style: TextButton.styleFrom(
+              foregroundColor: Colors.red,
+            ),
+            child: const Text('Delete'),
+            onPressed: () => Navigator.pop(context, true),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      try {
+        // Show loading indicator
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Deleting cards...'),
+              duration: Duration(seconds: 1),
+            ),
+          );
+        }
+
+        // Delete all selected cards
+        for (final cardId in _selectedCards) {
+          await _service.removeCard(cardId);
+        }
+        
+        setState(() {
+          _selectionMode = false;
+          _selectedCards.clear();
+        });
+
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Deleted ${_selectedCards.length} cards'),
+            ),
+          );
+        }
+      } catch (e) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Failed to delete cards'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    }
   }
 }

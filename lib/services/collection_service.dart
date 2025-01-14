@@ -16,10 +16,31 @@ class CollectionService {
   Future<void> _updatePriceHistory() async {
     try {
       final totalValue = await _calculateTotalValue();
-      await collection.doc(userId).collection('priceHistory').add({
-        'totalValue': totalValue,
-        'timestamp': FieldValue.serverTimestamp(),
-      });
+      final now = DateTime.now();
+      
+      // Check if we already have an entry for today
+      final todayStart = DateTime(now.year, now.month, now.day);
+      final existingEntry = await collection
+          .doc(userId)
+          .collection('priceHistory')
+          .where('timestamp', isGreaterThanOrEqualTo: todayStart)
+          .get();
+
+      if (existingEntry.docs.isEmpty) {
+        await collection
+            .doc(userId)
+            .collection('priceHistory')
+            .add({
+              'totalValue': totalValue,
+              'timestamp': FieldValue.serverTimestamp(),
+            });
+      } else {
+        // Update the existing entry
+        await existingEntry.docs.first.reference.update({
+          'totalValue': totalValue,
+          'timestamp': FieldValue.serverTimestamp(),
+        });
+      }
     } catch (e) {
       print('Error updating price history: $e');
     }
@@ -261,7 +282,6 @@ class CollectionService {
 
   Future<Map<String, dynamic>> getCollectionStats() async {
     try {
-      // Update collection path to use cards/{userId}/userCards
       final snapshot = await collection
           .doc(userId)
           .collection('userCards')
@@ -269,15 +289,17 @@ class CollectionService {
 
       final cards = snapshot.docs;
       
-      // Calculate collector score
+      // Calculate collector score and milestones (keep existing code)
       final collectorScore = await calculateCollectorScore(cards);
       final nextMilestone = calculateNextMilestone(cards);
       final recentMilestones = await getRecentMilestones();
 
-      // Calculate other stats
+      // Calculate basic stats
       double totalValue = 0;
       final setDistribution = <String, int>{};
+      final setValues = <String, double>{};  // Add this
       final rarityValues = <String, double>{};
+      final rarityCount = <String, int>{};
 
       for (var doc in cards) {
         final data = doc.data();
@@ -287,86 +309,114 @@ class CollectionService {
         final setName = data['setName'] as String?;
         if (setName != null) {
           setDistribution[setName] = (setDistribution[setName] ?? 0) + 1;
+          setValues[setName] = (setValues[setName] ?? 0) + price;  // Add this
         }
 
         final rarity = data['rarity'] as String?;
         if (rarity != null) {
           rarityValues[rarity] = (rarityValues[rarity] ?? 0) + price;
+          rarityCount[rarity] = (rarityCount[rarity] ?? 0) + 1;
         }
       }
 
-      // Add monthly stats calculation
+      // Calculate daily change
+      final today = DateTime.now();
+      final yesterday = today.subtract(const Duration(days: 1));
+      
+      // Get start of today and yesterday
+      final startOfToday = DateTime(today.year, today.month, today.day);
+      final startOfYesterday = DateTime(yesterday.year, yesterday.month, yesterday.day);
+      final startOfTomorrow = startOfToday.add(const Duration(days: 1));
+      
+      final todaySnapshot = await collection
+          .doc(userId)
+          .collection('priceHistory')
+          .where('timestamp', isGreaterThanOrEqualTo: startOfToday)
+          .where('timestamp', isLessThan: startOfTomorrow)
+          .orderBy('timestamp', descending: true)
+          .limit(1)
+          .get();
+
+      final yesterdaySnapshot = await collection
+          .doc(userId)
+          .collection('priceHistory')
+          .where('timestamp', isGreaterThanOrEqualTo: startOfYesterday)
+          .where('timestamp', isLessThan: startOfToday)
+          .orderBy('timestamp', descending: true)
+          .limit(1)
+          .get();
+
+      double dailyChange = 0;
+      double dailyChangePercent = 0;
+
+      if (todaySnapshot.docs.isNotEmpty && yesterdaySnapshot.docs.isNotEmpty) {
+        final todayValue = todaySnapshot.docs.first.get('totalValue') as double;
+        final yesterdayValue = yesterdaySnapshot.docs.first.get('totalValue') as double;
+        
+        dailyChange = todayValue - yesterdayValue;
+        if (yesterdayValue > 0) {
+          dailyChangePercent = (dailyChange / yesterdayValue) * 100;
+        }
+      }
+
+      // Calculate monthly stats properly
       final now = DateTime.now();
       final startOfMonth = DateTime(now.year, now.month, 1);
       
-      // Get all card additions this month
-      final monthlyAdditions = await FirebaseFirestore.instance
-          .collection('users')
+      final monthlyCardsSnapshot = await collection
           .doc(userId)
-          .collection('cards')
-          .where('addedAt', isGreaterThanOrEqualTo: startOfMonth)
+          .collection('userCards')
+          .where('dateAdded', isGreaterThanOrEqualTo: startOfMonth)
           .get();
 
-      // Calculate monthly stats
-      final monthlyStats = {
-        'cardsAdded': monthlyAdditions.docs.length,
-        'valueAdded': monthlyAdditions.docs
-            .map((doc) => doc.data()['price'] as double? ?? 0.0)
-            .fold<double>(0, (sum, price) => sum + price),
-        'growthPercentage': 0.0,
-        'valueGrowth': 0.0,
-      };
-
-      // Calculate growth percentage if we have previous month's data
-      final lastMonth = DateTime(now.year, now.month - 1, 1);
-      final previousMonthSnapshot = await FirebaseFirestore.instance
-          .collection('users')
+      final monthlyValueSnapshot = await collection
           .doc(userId)
-          .collection('monthlyStats')
-          .doc(lastMonth.toString().substring(0, 7))
+          .collection('priceHistory')
+          .where('timestamp', isGreaterThanOrEqualTo: startOfMonth)
+          .orderBy('timestamp')
           .get();
 
-      if (previousMonthSnapshot.exists) {
-        final previousValue = previousMonthSnapshot.data()?['totalValue'] as double? ?? 0.0;
-        if (previousValue > 0) {
-          final currentValue = monthlyStats['valueAdded'] as double;
-          monthlyStats['valueGrowth'] = currentValue - previousValue;
-          monthlyStats['growthPercentage'] = ((currentValue - previousValue) / previousValue) * 100;
-        }
+      double monthStartValue = 0;
+      double currentValue = totalValue;
+
+      if (monthlyValueSnapshot.docs.isNotEmpty) {
+        monthStartValue = monthlyValueSnapshot.docs.first.get('totalValue') as double;
       }
 
-      // Store current month's stats
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(userId)
-          .collection('monthlyStats')
-          .doc(now.toString().substring(0, 7))
-          .set({
-        'totalValue': totalValue,
-        'cardCount': cards.length,
-        'timestamp': FieldValue.serverTimestamp(),
-      });
+      final monthlyStats = {
+        'cardsAdded': monthlyCardsSnapshot.docs.length,
+        'valueAdded': currentValue - monthStartValue,
+        'valueGrowth': currentValue - monthStartValue,
+        'growthPercentage': monthStartValue > 0 
+            ? ((currentValue - monthStartValue) / monthStartValue) * 100 
+            : 0.0,
+      };
+
+      // Sort rarities by value to get the most valuable ones
+      final sortedRarities = rarityCount.entries.toList()
+        ..sort((a, b) => (rarityValues[b.key] ?? 0).compareTo(rarityValues[a.key] ?? 0));
+
+      final topRarities = sortedRarities.take(3).map((e) => {
+        'name': e.key,
+        'count': e.value,
+        'value': rarityValues[e.key],
+      }).toList();
 
       return {
         'totalCards': cards.length,
         'totalValue': totalValue,
         'averageValue': cards.isEmpty ? 0 : totalValue / cards.length,
         'uniqueSets': setDistribution.length,
-        'setDistribution': setDistribution,
-        'rarityValues': rarityValues,
-        'collectorScore': {
-          'total': collectorScore['total'],
-          'level': collectorScore['level'],
-          'progress': collectorScore['progress'],
-          'nextLevelPoints': collectorScore['nextLevelPoints'],
-          'rarityBonus': collectorScore['rarityBonus'],
-          'completionBonus': collectorScore['completionBonus'],
-          'valueBonus': collectorScore['valueBonus'],
-          'firstEditionBonus': collectorScore['firstEditionBonus'],
-          'diversityBonus': collectorScore['diversityBonus'],
-          'gradeBonus': collectorScore['gradeBonus'],
-          'streakBonus': collectorScore['streakBonus'],
+        'setDistribution': {
+          ...setDistribution,
+          'setValues': setValues,  // Add this
         },
+        'rarityValues': rarityValues,
+        'rarityCount': rarityCount,
+        'topRarities': topRarities,
+        'dailyChange': dailyChange,
+        'dailyChangePercent': dailyChangePercent,
+        'collectorScore': collectorScore,
         'monthlyStats': monthlyStats,
         'nextMilestone': nextMilestone,
         'recentMilestones': recentMilestones,
@@ -380,12 +430,10 @@ class CollectionService {
         'uniqueSets': 0,
         'setDistribution': {},
         'rarityValues': {},
-        'collectorScore': {
-          'total': 0,
-          'level': 0,
-          'progress': 0.0,
-          'nextLevelPoints': 100,
-        },
+        'rarityCount': {},
+        'topRarities': [],
+        'dailyChange': 0.0,
+        'dailyChangePercent': 0.0,
         'monthlyStats': {
           'cardsAdded': 0,
           'valueAdded': 0.0,
@@ -716,13 +764,24 @@ class CollectionService {
     if (userId.isEmpty) throw Exception('User not authenticated');
 
     try {
-      await collection
+      // First, verify the collection exists
+      final collectionRef = collection
           .doc(userId)
           .collection('customCollections')
-          .doc(collectionId)
-          .delete();
+          .doc(collectionId);
+
+      final doc = await collectionRef.get();
+      if (!doc.exists) {
+        throw Exception('Collection not found');
+      }
+
+      // Delete the collection document
+      await collectionRef.delete();
+      
+      // Navigate back after successful deletion
+      return;
     } catch (e) {
-      print('Error deleting collection: $e');
+      debugPrint('Error deleting collection: $e');
       throw Exception('Failed to delete collection');
     }
   }
@@ -1212,6 +1271,24 @@ class CollectionService {
         'growthPercentage': 0.0,
         'lastMonthValue': 0.0,
       };
+    }
+  }
+
+  Future<bool> cardExists(String cardId) async {
+    if (userId.isEmpty) return false;
+
+    try {
+      final querySnapshot = await collection
+          .doc(userId)
+          .collection('userCards')
+          .where('id', isEqualTo: cardId)
+          .limit(1)
+          .get();
+
+      return querySnapshot.docs.isNotEmpty;
+    } catch (e) {
+      print('Error checking if card exists: $e');
+      return false;
     }
   }
 }
