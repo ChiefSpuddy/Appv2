@@ -1,11 +1,16 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+import 'package:flutter/services.dart'; // Add this import for PlatformException
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:shared_preferences/shared_preferences.dart';  // Fix import
 
 class AuthService {
-  const AuthService();  // Keep constructor const
+  AuthService();  // Remove const constructor
   
   FirebaseAuth get _auth => FirebaseAuth.instance;
   FirebaseFirestore get _db => FirebaseFirestore.instance;
+  final GoogleSignIn _googleSignIn = GoogleSignIn();  // Initialize GoogleSignIn without const
 
   // Auth state changes stream
   Stream<User?> get authStateChanges => _auth.authStateChanges();
@@ -26,8 +31,11 @@ class AuthService {
     );
   }
 
-  // Sign out
+  // Enhanced sign out to clear all sessions
   Future<void> signOut() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.clear(); // Clear any stored credentials
+    await _googleSignIn.signOut();
     await _auth.signOut();
   }
 
@@ -69,6 +77,7 @@ class AuthService {
       batch.update(userDoc, {
         'username': username,
         'updatedAt': FieldValue.serverTimestamp(),
+        'needsProfileSetup': false,  // Add this line
       });
 
       await batch.commit();
@@ -109,5 +118,209 @@ class AuthService {
     } catch (e) {
       return false;
     }
+  }
+
+  Future<bool> resetPassword(String email) async {
+    try {
+      await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
+      return true;
+    } catch (e) {
+      print('Error sending password reset email: $e');
+      return false;
+    }
+  }
+
+  Future<UserCredential?> signInWithGoogle() async {
+    try {
+      if (kIsWeb) {
+        // Create a new provider
+        GoogleAuthProvider googleProvider = GoogleAuthProvider();
+        googleProvider.setCustomParameters({
+          'client_id': '977857362801-rs8b2k59qbudfjuba9dmr4bticab8n06.apps.googleusercontent.com'
+        });
+        
+        // Add these scopes
+        googleProvider.addScope('https://www.googleapis.com/auth/userinfo.email');
+        googleProvider.addScope('https://www.googleapis.com/auth/userinfo.profile');
+        
+        // Try popup first
+        try {
+          final userCredential = await _auth.signInWithPopup(googleProvider);
+          print('Popup sign in successful: ${userCredential.user?.email}');
+          await _handleSignInSuccess(userCredential);
+          return userCredential;
+        } catch (e) {
+          print('Popup sign in failed, trying redirect: $e');
+          await _auth.signInWithRedirect(googleProvider);
+          return null;
+        }
+      } else {
+        // Original mobile implementation
+        await _googleSignIn.signOut();
+        final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+        
+        if (googleUser == null) {
+          print('Google Sign In was cancelled by user');
+          return null;
+        }
+
+        // Obtain the auth details from the request
+        final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+        if (googleAuth.accessToken == null || googleAuth.idToken == null) {
+          print('Could not obtain auth tokens');
+          return null;
+        }
+
+        // Create a new credential
+        final credential = GoogleAuthProvider.credential(
+          accessToken: googleAuth.accessToken,
+          idToken: googleAuth.idToken,
+        );
+
+        // Sign in to Firebase with the credential
+        final userCredential = await _auth.signInWithCredential(credential);
+        
+        // Create/update user document
+        if (userCredential.user != null) {
+          await _db.collection('users').doc(userCredential.user!.uid).set({
+            'email': userCredential.user!.email,
+            'displayName': userCredential.user!.displayName,
+            'photoURL': userCredential.user!.photoURL,
+            'lastLogin': FieldValue.serverTimestamp(),
+            'provider': 'google',
+          }, SetOptions(merge: true));
+        }
+
+        return userCredential;
+      }
+    } catch (e) {
+      print('Error signing in with Google: $e');
+      if (e is FirebaseAuthException) {
+        print('Firebase Auth Error Code: ${e.code}');
+        print('Firebase Auth Error Message: ${e.message}');
+      } else if (e is PlatformException) {
+        print('Platform Error Code: ${e.code}');
+        print('Platform Error Message: ${e.message}');
+      }
+      return null;
+    }
+  }
+
+  Future<void> _handleSignInSuccess(UserCredential credential) async {
+    if (credential.user != null) {
+      final userDoc = _db.collection('users').doc(credential.user!.uid);
+      final userData = await userDoc.get();
+      
+      // Create regular timestamp for array
+      final now = Timestamp.now();
+      
+      if (!userData.exists) {
+        // New user
+        await userDoc.set({
+          'email': credential.user!.email,
+          'displayName': credential.user!.displayName,
+          'photoURL': credential.user!.photoURL,
+          'lastLogin': FieldValue.serverTimestamp(),
+          'provider': 'google',
+          'needsProfileSetup': true,  // Add this flag
+          'createdAt': FieldValue.serverTimestamp(),
+          'deviceSignIns': [
+            {
+              'timestamp': now,  // Use regular timestamp here
+              'platform': kIsWeb ? 'web' : 'mobile',
+              'deviceId': await _getDeviceId(),
+            }
+          ],
+        });
+      } else {
+        // Existing user - update login history
+        await userDoc.update({
+          'lastLogin': FieldValue.serverTimestamp(),
+          'deviceSignIns': FieldValue.arrayUnion([
+            {
+              'timestamp': now,  // Use regular timestamp here
+              'platform': kIsWeb ? 'web' : 'mobile',
+              'deviceId': await _getDeviceId(),
+            }
+          ]),
+        });
+      }
+    }
+  }
+
+  // Helper method to get unique device identifier
+  Future<String> _getDeviceId() async {
+    final prefs = await SharedPreferences.getInstance();
+    String? deviceId = prefs.getString('device_id');
+    
+    if (deviceId == null) {
+      deviceId = DateTime.now().millisecondsSinceEpoch.toString();
+      await prefs.setString('device_id', deviceId);
+    }
+    
+    return deviceId;
+  }
+
+  // Add these methods for account management
+  Future<List<UserInfo>> getLinkedProviders() async {
+    final user = _auth.currentUser;
+    return user?.providerData ?? [];
+  }
+
+  Future<void> linkGoogleAccount() async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) return;
+
+      if (kIsWeb) {
+        final googleProvider = GoogleAuthProvider();
+        await user.linkWithPopup(googleProvider);
+      } else {
+        final googleUser = await _googleSignIn.signIn();
+        if (googleUser == null) return;
+
+        final googleAuth = await googleUser.authentication;
+        final credential = GoogleAuthProvider.credential(
+          accessToken: googleAuth.accessToken,
+          idToken: googleAuth.idToken,
+        );
+        await user.linkWithCredential(credential);
+      }
+    } catch (e) {
+      print('Error linking Google account: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> unlinkProvider(String providerId) async {
+    try {
+      await _auth.currentUser?.unlink(providerId);
+    } catch (e) {
+      print('Error unlinking provider: $e');
+      rethrow;
+    }
+  }
+
+  Future<bool> needsProfileSetup() async {
+    final user = _auth.currentUser;
+    if (user == null) return false;
+
+    final doc = await _db.collection('users').doc(user.uid).get();
+    final data = doc.data();
+    
+    return data?['needsProfileSetup'] == true;
+  }
+
+  Future<bool> isProfileComplete() async {
+    final user = _auth.currentUser;
+    if (user == null) return false;
+
+    final doc = await _db.collection('users').doc(user.uid).get();
+    final data = doc.data();
+    
+    // Check if username and avatar are set
+    return data != null && 
+           data['username'] != null && 
+           data['avatarPath'] != null;
   }
 }

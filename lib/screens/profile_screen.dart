@@ -81,6 +81,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
+  Future<void> _handlePasswordReset(BuildContext context, String email) async {
+    final success = await _authService.resetPassword(email);
+    if (!mounted) return;
+
+    if (success) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Password reset email sent. Please check your inbox.'),
+          duration: Duration(seconds: 5),
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Failed to send password reset email. Please try again.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
   Widget _buildProfileCard(BuildContext context, User user) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
@@ -325,9 +346,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       leading: const Icon(Icons.password),
                       title: const Text('Change Password'),
                       onTap: () {
-                        // TODO: Implement password change
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Coming soon')),
+                        showDialog(
+                          context: context,
+                          builder: (context) => PasswordResetDialog(
+                            email: user.email ?? '',
+                            onConfirm: (email) => _handlePasswordReset(context, email),
+                          ),
                         );
                       },
                     ),
@@ -498,6 +522,64 @@ class _UsernameDialogState extends State<UsernameDialog> {
               ? () => Navigator.pop(context, _controller.text)
               : null,
           child: const Text('SAVE'),
+        ),
+      ],
+    );
+  }
+}
+
+class PasswordResetDialog extends StatelessWidget {
+  final String email;
+  final Function(String) onConfirm;
+
+  const PasswordResetDialog({
+    super.key,
+    required this.email,
+    required this.onConfirm,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Reset Password'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'We will send a password reset link to your email address:',
+            style: TextStyle(fontSize: 14),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            email,
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            'Note: Check your spam folder if you don\'t see the email.',
+            style: TextStyle(
+              fontSize: 12,
+              color: Colors.grey,
+              fontStyle: FontStyle.italic,
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('CANCEL'),
+        ),
+        FilledButton(
+          onPressed: () {
+            Navigator.pop(context);
+            onConfirm(email);
+          },
+          child: const Text('SEND RESET LINK'),
         ),
       ],
     );

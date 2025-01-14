@@ -12,6 +12,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'services/theme_service.dart';
 import 'providers/theme_provider.dart';
 import 'utils/pointer_event_handler.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+import 'package:flutter/foundation.dart'; // Add this import
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -21,6 +23,10 @@ Future<void> main() async {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
+    
+    // Remove the Google Sign-In initialization from here
+    // It will be handled directly by Firebase Auth
+    
   } catch (e) {
     debugPrint('Firebase initialization error: $e');
   }
@@ -60,13 +66,14 @@ class MyApp extends StatelessWidget {
             theme: themeProvider.lightTheme,
             darkTheme: themeProvider.darkTheme,
             themeMode: themeProvider.themeMode,
-            home: const HomeScreen(),
+            home: const AuthScreen(), // Change this to AuthScreen
             routes: {
+              '/home': (context) => const HomeScreen(),
+              '/auth': (context) => const AuthScreen(),
               '/search': (context) => SearchScreen(
                 initialQuery: ModalRoute.of(context)?.settings.arguments as String?,
               ),
-              '/profile': (context) => ProfileScreen(),
-              // ...other existing routes...
+              '/profile': (context) => const ProfileScreen(),
             },
           );
         },

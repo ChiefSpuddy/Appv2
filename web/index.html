@@ -4,18 +4,23 @@
   <base href="$FLUTTER_BASE_HREF">
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="A new Flutter project.">
-  <title>my_flutter_app</title>
+  <meta name="description" content="A Trading Card Game Collection Manager">
+  
+  <!-- Update Google Sign-In meta tag with the correct client ID -->
+  <meta name="google-signin-client_id" content="977857362801-rs8b2k59qbudfjuba9dmr4bticab8n06.apps.googleusercontent.com">
+  
+  <title>Card Collection App</title>
 
   <!-- Update CSP to be more permissive for development -->
   <meta http-equiv="Content-Security-Policy" content="
     default-src * 'self' 'unsafe-inline' 'unsafe-eval' data: blob:;
-    connect-src * 'self' ws: wss: http: https:;
-    script-src * 'self' 'unsafe-inline' 'unsafe-eval';
+    connect-src * 'self' ws: wss: http: https: accounts.google.com;
+    script-src * 'self' 'unsafe-inline' 'unsafe-eval' https://accounts.google.com;
     style-src * 'self' 'unsafe-inline';
     img-src * data: blob: 'self' https: http: https://*.pokemontcg.io https://images.pokemontcg.io crossorigin;
     font-src * 'self' data:;
     form-action 'self';
+    frame-src * 'self' https://accounts.google.com;
   ">
   
   <!-- Explicitly set renderer to CanvasKit -->
@@ -39,9 +44,16 @@
 
   <!-- Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
   <script src="firebase-config.js"></script>
+
+  <!-- Add Firebase Auth UI -->
+  <script src="https://www.gstatic.com/firebasejs/ui/6.0.1/firebase-ui-auth.js"></script>
+  <link type="text/css" rel="stylesheet" href="https://www.gstatic.com/firebasejs/ui/6.0.1/firebase-ui-auth.css" />
+
+  <!-- Add Google Identity Services SDK -->
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
 
   <script src="flutter.js" defer></script>
 </head>

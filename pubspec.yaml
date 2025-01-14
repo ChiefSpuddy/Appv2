@@ -1,7 +1,7 @@
 name: my_flutter_app
-description: "A new Flutter project."
+description: "A Trading Card Game Collection Manager"
 publish_to: 'none'
-version: 1.0.0+1
+version: 1.0.0+1  # Increment this for app store updates
 
 environment:
   sdk: '>=3.2.0 <4.0.0'
@@ -34,6 +34,9 @@ dependencies:
   # URL Launcher
   url_launcher: ^6.2.5
 
+  # Google Sign-In
+  google_sign_in: ^6.1.5  # Add this line
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -44,6 +47,8 @@ flutter:
   assets:
     - assets/names.json
     - assets/avatars/
+    - assets/images/  # Add this line
+    - assets/images/google_logo.png  # Add this line specifically
 
   fonts:
     - family: Poppins

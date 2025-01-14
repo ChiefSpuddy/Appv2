@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'home_screen.dart';  // Add this import
+import '../services/auth_service.dart';  // Add this import
+import 'home_screen.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
@@ -11,6 +13,8 @@ class AuthScreen extends StatefulWidget {
 }
 
 class _AuthScreenState extends State<AuthScreen> {
+  // Initialize AuthService without const
+  final AuthService _authService = AuthService();
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
@@ -119,6 +123,30 @@ class _AuthScreenState extends State<AuthScreen> {
             _isLoading = false;
           });
         }
+      }
+    }
+  }
+
+  Future<void> _handleGoogleSignIn() async {
+    setState(() => _isLoading = true);
+    try {
+      final credential = await _authService.signInWithGoogle();
+      if (!mounted) return;
+      
+      if (credential != null) {
+        Navigator.of(context).pushReplacementNamed('/home');
+      }
+    } catch (e) {
+      print('Error during Google sign in: $e');
+      if (!mounted) return;
+      
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Sign in failed: ${e.toString()}'),
+        backgroundColor: Colors.red,
+      ));
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
       }
     }
   }
@@ -245,6 +273,31 @@ class _AuthScreenState extends State<AuthScreen> {
                         )
                       : Text(_isLogin ? 'Login' : 'Sign Up'),
                 ),
+                
+                if (_isLogin) ...[
+                  const SizedBox(height: 12),
+                  OutlinedButton.icon(
+                    icon: Image.asset(
+                      'assets/images/google_logo.png',
+                      height: 18,
+                      errorBuilder: (context, error, stackTrace) => 
+                          const Icon(Icons.g_mobiledata),
+                    ),
+                    label: const Text('Sign in with Google'),
+                    style: OutlinedButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      foregroundColor: Colors.black87,
+                      padding: const EdgeInsets.symmetric(
+                        vertical: 12, 
+                        horizontal: 16
+                      ),
+                      side: BorderSide(color: Colors.grey.shade300),
+                    ),
+                    onPressed: _isLoading ? null : _handleGoogleSignIn,
+                  ),
+                ],
+
+                const SizedBox(height: 16),
                 TextButton(
                   onPressed: _isLoading
                       ? null
