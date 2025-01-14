@@ -50,4 +50,29 @@ class CustomCollection {
       priceHistory: List<Map<String, dynamic>>.from(map['priceHistory'] ?? []),
     );
   }
+
+  CustomCollection copyWith({
+    String? name,
+    String? description,
+    DateTime? createdAt,
+    List<String>? cardIds,
+    double? totalValue,
+    List<String>? tags,
+    String? shareCode,
+    List<Map<String, dynamic>>? notes,
+    List<Map<String, dynamic>>? priceHistory,
+  }) {
+    return CustomCollection(
+      id: id,
+      name: name ?? this.name,
+      description: description ?? this.description,
+      createdAt: createdAt ?? this.createdAt,
+      cardIds: cardIds ?? this.cardIds,
+      totalValue: totalValue ?? this.totalValue,
+      tags: tags ?? this.tags,
+      shareCode: shareCode ?? this.shareCode,
+      notes: notes ?? this.notes,
+      priceHistory: priceHistory ?? this.priceHistory,
+    );
+  }
 }

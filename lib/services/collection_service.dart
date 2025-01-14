@@ -6,6 +6,7 @@ import 'package:crypto/crypto.dart';  // Add this package to pubspec.yaml
 import '../models/card_model.dart';
 import '../models/custom_collection.dart';  // Add this import
 import 'package:flutter/foundation.dart';
+import '../models/collector_level.dart';  // Add this import at the top
 
 class CollectionService {
   final String userId = FirebaseAuth.instance.currentUser?.uid ?? '';
@@ -747,7 +748,7 @@ class CollectionService {
     }
   }
 
-  Future<void> updateCollection(String collectionId, String name, String description) async {
+  Future<void> updateCollectionDetails(String collectionId, String name, String description) async {
     if (userId.isEmpty) throw Exception('User not authenticated');
 
     await collection
@@ -869,6 +870,25 @@ class CollectionService {
       print('Error getting collection cards: $e');
       rethrow;
     }
+  }
+
+  Stream<List<TcgCard>> getCollectionCardsStream(String collectionId) {
+    if (userId.isEmpty) throw Exception('User not authenticated');
+    
+    return collection
+        .doc(userId)
+        .collection('customCollections')
+        .doc(collectionId)
+        .snapshots()
+        .asyncMap((doc) async {
+          if (!doc.exists) return [];
+          
+          final cardIds = List<String>.from(doc.data()?['cardIds'] ?? []);
+          if (cardIds.isEmpty) return [];
+
+          final cards = await getCollectionCards(collectionId);
+          return cards;
+        });
   }
 
   Future<Map<String, dynamic>> exportCollection(String collectionId) async {
@@ -1131,17 +1151,189 @@ class CollectionService {
     // Calculate total score with weights
     final total = bonuses.values.fold<int>(0, (sum, bonus) => sum + (bonus as int));
 
-    // Calculate levels
-    final level = (total / 100).floor();
-    final nextLevelPoints = (level + 1) * 100;
-    final progress = (total % 100) / 100;
+    // Enhanced XP calculations
+    int totalXp = total;  // Start with existing total as base XP
+    
+    // Additional XP sources
+    totalXp += await _calculateActivityXp();
+    totalXp += await _calculateAchievementXp();
+    totalXp += _calculateSetCompletionXp(cards);
+    totalXp += _calculateRarityXp(cards);
+    
+    // Calculate level and progress
+    final currentLevel = (totalXp / 100).floor();
+    final currentXp = totalXp % 100;
+    final requiredXp = CollectorLevel.calculateRequiredXp(currentLevel);
+    
+    // Calculate unlocked perks based on level
+    final unlockedPerks = _calculateUnlockedPerks(currentLevel);
+    
+    // XP multipliers
+    final multipliers = await _getXpMultipliers();
 
     return {
-      'total': total,
-      'level': level,
-      'nextLevelPoints': nextLevelPoints,
-      'progress': progress,
+      'total': totalXp,
+      'level': currentLevel,
+      'currentXp': currentXp,
+      'requiredXp': requiredXp,
+      'progress': currentXp / requiredXp,
+      'unlockedPerks': unlockedPerks,
+      'multipliers': multipliers,
       ...bonuses,
+    };
+  }
+
+  int _calculateRarityXp(List<DocumentSnapshot> cards) {
+    int xp = 0;
+    final rarityMultipliers = {
+      'Common': 1,
+      'Uncommon': 2,
+      'Rare': 5,
+      'Ultra Rare': 10,
+      'Secret Rare': 20,
+      'Trophy Card': 50,
+    };
+
+    for (var card in cards) {
+      final data = card.data() as Map<String, dynamic>;
+      final rarity = data['rarity'] as String?;
+      if (rarity != null) {
+        xp += rarityMultipliers[rarity] ?? 1;
+      }
+    }
+
+    return xp;
+  }
+
+  Future<List<Map<String, dynamic>>> _getRecentActivity() async {
+    final now = DateTime.now();
+    final yesterday = now.subtract(const Duration(days: 1));
+    
+    final activities = await _firestore
+        .collection('users')
+        .doc(userId)
+        .collection('activity')
+        .where('timestamp', isGreaterThan: yesterday)
+        .orderBy('timestamp', descending: true)
+        .get();
+
+    return activities.docs.map((doc) => doc.data()).toList();
+  }
+
+  Future<List<Map<String, dynamic>>> _getCompletedAchievements() async {
+    final achievements = await _firestore
+        .collection('users')
+        .doc(userId)
+        .collection('achievements')
+        .where('completed', isEqualTo: true)
+        .get();
+
+    return achievements.docs.map((doc) => doc.data()).toList();
+  }
+
+  Map<String, double> _calculateSetCompletion(List<DocumentSnapshot> cards) {
+    final setProgress = <String, double>{};
+    final setCounts = <String, int>{};
+    final setTotals = <String, int>{};
+
+    // Count cards per set
+    for (var card in cards) {
+      final data = card.data() as Map<String, dynamic>;
+      final setName = data['setName'] as String?;
+      if (setName != null) {
+        setCounts[setName] = (setCounts[setName] ?? 0) + 1;
+        // This would ideally come from a separate collection containing set information
+        setTotals[setName] = 100; // Placeholder: assume 100 cards per set
+      }
+    }
+
+    // Calculate completion percentages
+    setCounts.forEach((setName, count) {
+      setProgress[setName] = count / (setTotals[setName] ?? 100);
+    });
+
+    return setProgress;
+  }
+
+  Future<Map<String, dynamic>> _getUserData() async {
+    final doc = await _firestore
+        .collection('users')
+        .doc(userId)
+        .get();
+    
+    return doc.data() ?? {};
+  }
+
+  Future<double> _calculateStreakMultiplier() async {
+    final streak = await _getActivityStreak();
+    if (streak >= 30) return 2.0;     // 2x multiplier for 30+ day streak
+    if (streak >= 14) return 1.5;     // 1.5x multiplier for 14+ day streak
+    if (streak >= 7) return 1.25;     // 1.25x multiplier for 7+ day streak
+    return 1.0;                       // Base multiplier
+  }
+
+  Future<int> _calculateActivityXp() async {
+    final streak = await _getActivityStreak();
+    int xp = 0;
+    
+    // Daily login rewards
+    if (streak > 0) {
+      xp += 10;  // Base daily XP
+      if (streak >= 7) xp += 20;  // Weekly bonus
+      if (streak >= 30) xp += 50;  // Monthly bonus
+    }
+    
+    // Recent activity bonuses
+    final recentActivity = await _getRecentActivity();
+    xp += recentActivity.length * 5;  // 5 XP per activity
+    
+    return xp;
+  }
+
+  Future<int> _calculateAchievementXp() async {
+    final achievements = await _getCompletedAchievements();
+    return achievements.fold<int>(0, (sum, achievement) {
+      switch (achievement['rarity']) {
+        case 'common': return sum + 10;
+        case 'rare': return sum + 25;
+        case 'epic': return sum + 50;
+        case 'legendary': return sum + 100;
+        default: return sum;
+      }
+    });
+  }
+
+  int _calculateSetCompletionXp(List<DocumentSnapshot> cards) {
+    final setProgress = _calculateSetCompletion(cards);
+    int xp = 0;
+    
+    setProgress.forEach((setName, percentage) {
+      if (percentage >= 1.0) xp += 100;  // Complete set bonus
+      else if (percentage >= 0.75) xp += 50;  // 75% completion
+      else if (percentage >= 0.5) xp += 25;  // 50% completion
+    });
+    
+    return xp;
+  }
+
+  Map<String, String> _calculateUnlockedPerks(int level) {
+    return {
+      if (level >= 5) 'Custom Backgrounds': 'Unlock custom collection backgrounds',
+      if (level >= 10) 'Price Alerts': 'Unlock price change alerts',
+      if (level >= 15) 'Advanced Analytics': 'Unlock advanced analytics',
+      if (level >= 20) 'Bulk Actions': 'Unlock bulk card management',
+      if (level >= 25) 'Market Insights': 'Unlock market trend insights',
+      // Add more perks as needed
+    };
+  }
+
+  Future<Map<String, double>> _getXpMultipliers() async {
+    // Fetch active multipliers from user data
+    final userData = await _getUserData();
+    return {
+      'weekend_bonus': 1.5,  // Weekend bonus multiplier
+      'event_bonus': userData['eventMultiplier'] ?? 1.0,  // Special event multiplier
+      'streak_bonus': await _calculateStreakMultiplier(),
     };
   }
 
@@ -1290,5 +1482,19 @@ class CollectionService {
       print('Error checking if card exists: $e');
       return false;
     }
+  }
+
+  Future<void> updateCollectionField(String collectionId, String userId, Map<String, dynamic> data) async {
+    await _firestore.collection('custom_collections')
+        .doc(collectionId)
+        .update(data);
+  }
+
+  Future<void> removeCardFromCollection(String collectionId, String cardId, String userId) async {
+    await _firestore.collection('custom_collections')
+        .doc(collectionId)
+        .update({
+          'cardIds': FieldValue.arrayRemove([cardId])
+        });
   }
 }

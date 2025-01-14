@@ -35,75 +35,44 @@ class _CollectionGridState extends State<CollectionGrid> {
   }
 
   void _toggleCardSelection(String cardId) {
-    setState(() {
-      if (_selectedCards.contains(cardId)) {
-        _selectedCards.remove(cardId);
-      } else {
-        _selectedCards.add(cardId);
-      }
-      
-      if (_selectedCards.isEmpty) {
-        _selectionMode = false;
-      }
-    });
+    if (mounted) {
+      setState(() {
+        if (_selectedCards.contains(cardId)) {
+          _selectedCards.remove(cardId);
+        } else {
+          _selectedCards.add(cardId);
+        }
+        
+        if (_selectedCards.isEmpty) {
+          _selectionMode = false;
+        }
+      });
+    }
   }
 
   Future<void> _showAddToCollectionDialog({String? singleCardId}) async {
     final cardIds = singleCardId != null ? [singleCardId] : _selectedCards.toList();
     if (cardIds.isEmpty) return;
 
-    final collections = await _service.getCustomCollections();
-    
-    if (!context.mounted) return;
-
-    final result = await showDialog<CustomCollection>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Add to Collection'),
-        content: SizedBox(
-          width: double.maxFinite,
-          child: ListView(
-            shrinkWrap: true,
-            children: [
-              ListTile(
-                leading: const Icon(Icons.add),
-                title: const Text('Create New Collection'),
-                onTap: () async {
-                  Navigator.pop(context);
-                  await _showCreateCollectionDialog();
-                },
-              ),
-              const Divider(),
-              ...collections.map((collection) => ListTile(
-                title: Text(collection.name),
-                subtitle: Text('${collection.cardIds.length} cards'),
-                onTap: () => Navigator.pop(context, collection),
-              )),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            child: const Text('Cancel'),
-            onPressed: () => Navigator.pop(context),
-          ),
-        ],
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => CustomCollectionsScreen(),
       ),
-    );
-
-    if (result != null) {
-      await _service.addCardsToCollection(result.id, cardIds);
-      setState(() {
-        _selectionMode = false;
-        _selectedCards.clear();
-      });
-
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Added ${cardIds.length} cards to ${result.name}')),
-        );
+    ).then((result) async {
+      if (result is CustomCollection) {
+        await _service.addCardsToCollection(result.id, cardIds);
+        setState(() {
+          _selectionMode = false;
+          _selectedCards.clear();
+        });
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Added ${cardIds.length} cards to ${result.name}')),
+          );
+        }
       }
-    }
+    });
   }
 
   Future<void> _showCreateCollectionDialog() async {
@@ -351,8 +320,8 @@ class _CollectionGridState extends State<CollectionGrid> {
                   padding: const EdgeInsets.all(8),
                   gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: 3,
-                    childAspectRatio: 0.75,
-                    crossAxisSpacing: 8,
+                    childAspectRatio: 0.65, // Made taller
+                    crossAxisSpacing: 6, // Slightly reduced spacing
                     mainAxisSpacing: 8,
                   ),
                   itemCount: snapshot.data!.docs.length,
@@ -368,54 +337,69 @@ class _CollectionGridState extends State<CollectionGrid> {
                       price: data['price']?.toDouble(),
                     );
                     
-                    return GestureDetector(
-                      onLongPress: () {
-                        setState(() {
+                    return Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onLongPress: () {
                           if (!_selectionMode) {
-                            _selectionMode = true;
-                            _selectedCards.add(doc.id);
+                            setState(() {
+                              _selectionMode = true;
+                              _selectedCards.add(doc.id);
+                            });
                           } else {
                             _toggleCardSelection(doc.id);
                           }
-                        });
-                      },
-                      onTap: () {
-                        if (_selectionMode) {
-                          _toggleCardSelection(doc.id);
-                        } else {
-                          _showCardOptionsDialog(doc.id, card);
-                        }
-                      },
-                      child: Stack(
-                        children: [
-                          CardItem(card: card),
-                          if (_selectionMode)
-                            Positioned.fill(
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  color: _selectedCards.contains(doc.id)
-                                      ? Theme.of(context).primaryColor.withOpacity(0.3)
-                                      : Colors.transparent,
-                                  border: Border.all(
-                                    color: _selectedCards.contains(doc.id)
-                                        ? Theme.of(context).primaryColor
-                                        : Colors.transparent,
-                                    width: 2,
-                                  ),
-                                  borderRadius: BorderRadius.circular(8),
+                        },
+                        onTap: () {
+                          if (_selectionMode) {
+                            _toggleCardSelection(doc.id);
+                          } else {
+                            _showCardOptionsDialog(doc.id, card);
+                          }
+                        },
+                        child: Stack(
+                          children: [
+                            CardItem(card: card),
+                            if (_selectionMode)
+                              TweenAnimationBuilder<double>(
+                                tween: Tween(
+                                  begin: 0.0,
+                                  end: _selectedCards.contains(doc.id) ? 1.0 : 0.0,
                                 ),
-                                child: _selectedCards.contains(doc.id)
-                                    ? const Center(
-                                        child: Icon(
-                                          Icons.check_circle,
-                                          color: Colors.white,
-                                          size: 32,
+                                duration: const Duration(milliseconds: 200),
+                                builder: (context, value, child) {
+                                  return Container(
+                                    decoration: BoxDecoration(
+                                      color: Theme.of(context).primaryColor.withOpacity(0.3 * value),
+                                      border: Border.all(
+                                        color: Theme.of(context).primaryColor.withOpacity(value),
+                                        width: 2,
+                                      ),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Center(
+                                      child: AnimatedOpacity(
+                                        opacity: value,
+                                        duration: const Duration(milliseconds: 200),
+                                        child: Container(
+                                          padding: const EdgeInsets.all(8),
+                                          decoration: BoxDecoration(
+                                            color: Theme.of(context).primaryColor,
+                                            shape: BoxShape.circle,
+                                          ),
+                                          child: const Icon(
+                                            Icons.check,
+                                            color: Colors.white,
+                                            size: 24,
+                                          ),
                                         ),
-                                      )
-                                    : null,
+                                      ),
+                                    ),
+                                  );
+                                },
                               ),
-                            ),
-                        ],
+                          ],
+                        ),
                       ),
                     );
                   },
@@ -425,14 +409,6 @@ class _CollectionGridState extends State<CollectionGrid> {
           ),
         ],
       ),
-      floatingActionButton: !_selectionMode ? FloatingActionButton(
-        onPressed: () {
-          setState(() {
-            _selectionMode = true;
-          });
-        },
-        child: const Icon(Icons.select_all),
-      ) : null,
     );
   }
 

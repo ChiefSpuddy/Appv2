@@ -55,16 +55,15 @@ class CollectionAnalytics extends StatelessWidget {
                 children: [
                   _buildSummaryCards(stats),
                   const SizedBox(height: 16),
-                  const SizedBox(height: 16),
                   _buildPriceHistory(_collectionService),
+                  const SizedBox(height: 16),
+                  _buildMonthlyProgress(stats['monthlyStats']), // Moved up
                   const SizedBox(height: 24),
                   _buildCollectorScore(stats),
                   const SizedBox(height: 24),
                   _buildMilestones(stats),
                   const SizedBox(height: 24),
                   _buildBiggestMovers(_collectionService),
-                  const SizedBox(height: 24),
-                  _buildMonthlyProgress(stats['monthlyStats']),
                   const SizedBox(height: 24),
                   _buildRarityValues(stats['rarityValues'] ?? {}),
                   const SizedBox(height: 24),
@@ -1185,72 +1184,252 @@ class CollectionAnalytics extends StatelessWidget {
   Widget _buildCollectorScore(Map<String, dynamic> stats) {
     final score = stats['collectorScore'] as Map<String, dynamic>? ?? {};
     final level = score['level'] as int? ?? 0;
-    final progress = score['progress'] as double? ?? 0.0;
-    final nextLevelPoints = score['nextLevelPoints'] as int? ?? 100;
+    final currentXp = score['currentXp'] as int? ?? 0;
+    final requiredXp = score['requiredXp'] as int? ?? 100;
+    final progress = currentXp / requiredXp;
+    final unlockedPerks = Map<String, String>.from(score['unlockedPerks'] ?? {});
 
     return Card(
       elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildSectionHeader('Collector Level', color: _modernChartColors[0]),
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                _buildSectionHeader('Collector Level', color: _modernChartColors[0]),
+                Tooltip(
+                  message: 'Collector Level increases as you earn XP from various activities:\n\n'
+                      '• Adding cards to your collection\n'
+                      '• Completing sets\n'
+                      '• Daily login streaks\n'
+                      '• Special achievements\n'
+                      '• Collection value milestones\n\n'
+                      'Unlock new features and bonuses as you level up!',
+                  child: Icon(
+                    Icons.info_outline,
+                    size: 20,
+                    color: Colors.grey[400],
+                  ),
+                ),
+              ],
+            ),
+          ),
           Padding(
             padding: const EdgeInsets.all(16),
             child: Column(
               children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(24),
-                      decoration: BoxDecoration(
-                        color: _modernChartColors[0].withOpacity(0.1),
-                        shape: BoxShape.circle,
-                      ),
-                      child: Text(
-                        'Lvl $level',
-                        style: TextStyle(
-                          fontSize: 32,
-                          fontWeight: FontWeight.bold,
-                          color: _modernChartColors[0],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+                _buildLevelBadge(level),
                 const SizedBox(height: 16),
-                LinearProgressIndicator(
-                  value: progress,
-                  backgroundColor: Colors.grey[200],
-                  valueColor: AlwaysStoppedAnimation<Color>(_modernChartColors[0]),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  '${(progress * 100).toInt()} / 100 points to level ${level + 1}',
-                  style: const TextStyle(fontSize: 12, color: Colors.grey),
-                ),
+                _buildXpProgress(currentXp, requiredXp, progress),
                 const SizedBox(height: 24),
-                const Text(
-                  'Score Breakdown',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                _buildScoreComponent('Rarity Bonus', score['rarityBonus'] ?? 0, _modernChartColors[1]),
-                _buildScoreComponent('Set Completion', score['completionBonus'] ?? 0, _modernChartColors[2]),
-                _buildScoreComponent('Collection Value', score['valueBonus'] ?? 0, _modernChartColors[3]),
-                _buildScoreComponent('First Editions', score['firstEditionBonus'] ?? 0, _modernChartColors[4]),
-                _buildScoreComponent('Set Diversity', score['diversityBonus'] ?? 0, _modernChartColors[5]),
-                _buildScoreComponent('Card Grades', score['gradeBonus'] ?? 0, _modernChartColors[6]),
-                _buildScoreComponent('Activity Streak', score['streakBonus'] ?? 0, _modernChartColors[7]),
+                _buildPerksSection(unlockedPerks, level),
+                const Divider(height: 32),
+                _buildXpBreakdown(score),
               ],
             ),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildLevelBadge(int level) {
+    return Stack(
+      alignment: Alignment.center,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                _modernChartColors[0],
+                _modernChartColors[1],
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: _modernChartColors[0].withOpacity(0.3),
+                blurRadius: 12,
+                spreadRadius: 2,
+              ),
+            ],
+          ),
+          child: Text(
+            '$level',
+            style: const TextStyle(
+              fontSize: 36,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
+          ),
+        ),
+        CircularProgressIndicator(
+          value: (level % 5) / 5,
+          strokeWidth: 2,
+          backgroundColor: Colors.white24,
+          valueColor: AlwaysStoppedAnimation<Color>(Colors.white70),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildXpProgress(int currentXp, int requiredXp, double progress) {
+    return Column(
+      children: [
+        LinearProgressIndicator(
+          value: progress,
+          backgroundColor: Colors.grey[200],
+          valueColor: AlwaysStoppedAnimation<Color>(_modernChartColors[0]),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          '$currentXp / $requiredXp XP',
+          style: const TextStyle(fontSize: 12, color: Colors.grey),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildActiveMultipliers(Map<String, double> multipliers) {
+    final formattedMultipliers = multipliers.map((key, value) => MapEntry(
+      _formatMultiplierName(key),
+      value,
+    ));
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Text(
+              'Active Multipliers',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Tooltip(
+              message: 'XP Multipliers stack and boost your earned XP:\n\n'
+                  '• Weekend Bonus: 1.5x XP on weekends\n'
+                  '• Activity Streak: Up to 2x XP for daily logins\n'
+                  '• Special Events: Look out for limited-time multipliers!',
+              child: Icon(
+                Icons.info_outline,
+                size: 16,
+                color: Colors.grey[400],
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        ...formattedMultipliers.entries.map((entry) => Row(
+          children: [
+            Expanded(
+              child: Text(
+                entry.key,
+                style: const TextStyle(fontSize: 14),
+              ),
+            ),
+            Text(
+              '${entry.value.toStringAsFixed(1)}x',
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        )),
+      ],
+    );
+  }
+
+  String _formatMultiplierName(String key) {
+    switch (key) {
+      case 'weekend_bonus':
+        return 'Weekend Bonus';
+      case 'event_bonus':
+        return 'Event Bonus';
+      case 'streak_bonus':
+        return 'Streak Bonus';
+      default:
+        return key.split('_')
+            .map((word) => word[0].toUpperCase() + word.substring(1))
+            .join(' ');
+    }
+  }
+
+  Widget _buildPerksSection(Map<String, String> unlockedPerks, int level) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Unlocked Perks',
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 8),
+        ...unlockedPerks.entries.map((entry) => ListTile(
+          leading: Icon(
+            Icons.check_circle,
+            color: _modernChartColors[0],
+          ),
+          title: Text(entry.key),
+          subtitle: Text(entry.value),
+          dense: true,
+          contentPadding: EdgeInsets.zero,
+        )),
+      ],
+    );
+  }
+
+  Widget _buildXpBreakdown(Map<String, dynamic> score) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Text(
+              'XP Breakdown',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Tooltip(
+              message: 'XP is earned from multiple sources:\n\n'
+                  '• Rarity Bonus: Higher rarity cards give more XP\n'
+                  '• Set Completion: Complete sets for big XP bonuses\n'
+                  '• Collection Value: Earn XP based on total value\n'
+                  '• First Editions: Special bonus for first editions\n'
+                  '• Set Diversity: Bonus for collecting different sets\n'
+                  '• Card Grades: Better grades mean more XP\n'
+                  '• Activity Streak: Daily login bonuses',
+              child: Icon(
+                Icons.info_outline,
+                size: 16,
+                color: Colors.grey[400],
+              ),
+            ),
+          ],
+        ),
+        _buildScoreComponent('Rarity Bonus', score['rarityBonus'] ?? 0, _modernChartColors[1]),
+        _buildScoreComponent('Set Completion', score['completionBonus'] ?? 0, _modernChartColors[2]),
+        _buildScoreComponent('Collection Value', score['valueBonus'] ?? 0, _modernChartColors[3]),
+        _buildScoreComponent('First Editions', score['firstEditionBonus'] ?? 0, _modernChartColors[4]),
+        _buildScoreComponent('Set Diversity', score['diversityBonus'] ?? 0, _modernChartColors[5]),
+        _buildScoreComponent('Card Grades', score['gradeBonus'] ?? 0, _modernChartColors[6]),
+        _buildScoreComponent('Activity Streak', score['streakBonus'] ?? 0, _modernChartColors[7]),
+      ],
     );
   }
 

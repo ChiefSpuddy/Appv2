@@ -49,6 +49,7 @@ flutter:
     - assets/avatars/
     - assets/images/  # Add this line
     - assets/images/google_logo.png  # Add this line specifically
+    - assets/backgrounds/
 
   fonts:
     - family: Poppins

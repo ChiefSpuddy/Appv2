@@ -21,11 +21,31 @@ class CollectionScreen extends StatefulWidget {  // Change to StatefulWidget
 }
 
 class _CollectionScreenState extends State<CollectionScreen> {
-  bool _showAnalytics = false;
+  int _selectedIndex = 0; // 0: Collection, 1: Analytics, 2: Custom Collections
   static final _authService = AuthService();
 
-  void _switchView(bool showAnalytics) {
-    setState(() => _showAnalytics = showAnalytics);
+  void _switchView(int index) {
+    if (_selectedIndex == index) return; // Don't reload if already selected
+    
+    setState(() => _selectedIndex = index);
+    
+    if (index == 2) {
+      Navigator.push(
+        context,
+        PageRouteBuilder(
+          pageBuilder: (context, animation, secondaryAnimation) => const CustomCollectionsScreen(),
+          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            return SlideTransition(
+              position: Tween<Offset>(
+                begin: const Offset(1.0, 0.0),
+                end: Offset.zero,
+              ).animate(animation),
+              child: child,
+            );
+          },
+        ),
+      ).then((_) => _switchView(0));
+    }
   }
 
   Widget _buildCustomCollectionsMenuEntry(List<CustomCollection> collections) {
@@ -107,42 +127,54 @@ class _CollectionScreenState extends State<CollectionScreen> {
             backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
             title: Padding(
               padding: const EdgeInsets.symmetric(vertical: 8),
-              child: SegmentedButton<bool>(
+              child: SegmentedButton<int>(
                 segments: [
-                  ButtonSegment<bool>(
-                    value: false,
+                  ButtonSegment<int>(
+                    value: 0,
                     icon: Icon(
-                      Icons.grid_view,
-                      color: !_showAnalytics ? Colors.white : Colors.grey[700],
-                      size: 20,
+                      Icons.account_balance_wallet,  // Changed icon
+                      color: _selectedIndex == 0 
+                          ? Colors.white.withOpacity(0.95)
+                          : isDark ? Colors.grey[300] : Colors.grey[800],
+                      size: 22,
                     ),
-                    label: Text(
-                      'Collection',
-                      style: TextStyle(
-                        color: !_showAnalytics ? Colors.white : Colors.grey[700],
-                        fontSize: 13,
-                      ),
-                    ),
+                    label: const Text('Portfolio'),  // Changed label
                   ),
-                  ButtonSegment<bool>(
-                    value: true,
+                  ButtonSegment<int>(
+                    value: 1,
                     icon: Icon(
                       Icons.analytics,
-                      color: _showAnalytics ? Colors.white : Colors.grey[700],
-                      size: 20,
+                      color: _selectedIndex == 1
+                          ? Colors.white.withOpacity(0.95)
+                          : isDark ? Colors.grey[300] : Colors.grey[800],
+                      size: 22,
                     ),
-                    label: Text(
-                      'Analytics',
-                      style: TextStyle(
-                        color: _showAnalytics ? Colors.white : Colors.grey[700],
-                        fontSize: 13,
-                      ),
+                    label: const Text('Analytics'),
+                  ),
+                  ButtonSegment<int>(
+                    value: 2,
+                    icon: Icon(
+                      Icons.collections_bookmark,
+                      color: _selectedIndex == 2
+                          ? Colors.white.withOpacity(0.95)
+                          : isDark ? Colors.grey[300] : Colors.grey[800],
+                      size: 22,
                     ),
+                    label: const Text('Collections'),
                   ),
                 ],
-                selected: {_showAnalytics},
-                onSelectionChanged: (Set<bool> newSelection) {
-                  _switchView(newSelection.first);
+                selected: {_selectedIndex},
+                onSelectionChanged: (Set<int> newSelection) {
+                  final index = newSelection.first;
+                  _switchView(index);
+                  if (index == 2) {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const CustomCollectionsScreen(),
+                      ),
+                    ).then((_) => _switchView(0)); // Return to collection view
+                  }
                 },
                 style: ButtonStyle(
                   backgroundColor: MaterialStateProperty.resolveWith<Color?>(
@@ -155,7 +187,17 @@ class _CollectionScreenState extends State<CollectionScreen> {
                         : Colors.grey[200]?.withOpacity(0.8);
                     },
                   ),
-                  side: MaterialStateProperty.all(BorderSide.none),
+                  side: MaterialStateProperty.resolveWith<BorderSide>(
+                    (states) {
+                      if (states.contains(MaterialState.selected)) {
+                        return BorderSide.none;
+                      }
+                      return BorderSide(
+                        color: isDark ? Colors.white30 : Colors.black26,
+                        width: 1.0,
+                      );
+                    },
+                  ),
                   padding: MaterialStateProperty.all(
                     const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   ),
@@ -177,10 +219,10 @@ class _CollectionScreenState extends State<CollectionScreen> {
                       Provider.of<ThemeProvider>(context, listen: false).toggleTheme();
                       break;
                     case 'view_collection':
-                      _switchView(false);
+                      _switchView(0);
                       break;
                     case 'view_analytics':
-                      _switchView(true);
+                      _switchView(1);
                       break;
                     case 'sort_name':
                     case 'sort_price':
@@ -197,6 +239,14 @@ class _CollectionScreenState extends State<CollectionScreen> {
                           MaterialPageRoute(builder: (_) => const AuthScreen()),
                         );
                       }
+                      break;
+                    case 'custom_collections':
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const CustomCollectionsScreen(),
+                        ),
+                      );
                       break;
                   }
                 },
@@ -224,7 +274,7 @@ class _CollectionScreenState extends State<CollectionScreen> {
                       dense: true,
                       leading: const Icon(Icons.grid_view),
                       title: const Text('View Collection'),
-                      trailing: !_showAnalytics ? const Icon(Icons.check, size: 16) : null,
+                      trailing: _selectedIndex == 0 ? const Icon(Icons.check, size: 16) : null,
                     ),
                   ),
                   PopupMenuItem(
@@ -233,10 +283,10 @@ class _CollectionScreenState extends State<CollectionScreen> {
                       dense: true,
                       leading: const Icon(Icons.analytics),
                       title: const Text('View Analytics'),
-                      trailing: _showAnalytics ? const Icon(Icons.check, size: 16) : null,
+                      trailing: _selectedIndex == 1 ? const Icon(Icons.check, size: 16) : null,
                     ),
                   ),
-                  if (!_showAnalytics) ...[
+                  if (_selectedIndex == 0) ...[
                     const PopupMenuDivider(),
                     // Sort options
                     PopupMenuItem(
@@ -275,6 +325,25 @@ class _CollectionScreenState extends State<CollectionScreen> {
                     ),
                   ],
                   const PopupMenuDivider(),
+                  PopupMenuItem<String>(
+                    value: 'custom_collections',
+                    child: StreamBuilder<List<CustomCollection>>(
+                      stream: CollectionService().getCustomCollectionsStream(),
+                      builder: (context, snapshot) {
+                        final collections = snapshot.data ?? [];
+                        return ListTile(
+                          dense: true,
+                          leading: const Icon(Icons.collections_bookmark),
+                          title: const Text('Custom Collections'),
+                          subtitle: Text(
+                            '${collections.length} collections • €${collections.fold<double>(0, (sum, c) => sum + (c.totalValue ?? 0)).toStringAsFixed(2)}',
+                            style: const TextStyle(fontSize: 12),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  const PopupMenuDivider(),
                   PopupMenuItem(
                     value: 'logout',
                     child: ListTile(
@@ -287,18 +356,30 @@ class _CollectionScreenState extends State<CollectionScreen> {
               ),
             ],
           ),
-          body: Container(
-            margin: const EdgeInsets.only(top: 8),
-            child: Theme(
-              data: Theme.of(context).copyWith(
-                colorScheme: Theme.of(context).colorScheme.copyWith(
-                  surface: isDark ? const Color(0xFF2D2D2D) : Colors.white,
-                ),
-              ),
-              child: _showAnalytics
-                ? const CollectionAnalytics()
-                : const CollectionGrid(),
-            ),
+          // Remove or comment out this FAB since it's handled in CollectionGrid
+          // floatingActionButton: FloatingActionButton.small(
+          //   onPressed: () => Navigator.push(
+          //     context,
+          //     MaterialPageRoute(
+          //       builder: (context) => const CustomCollectionsScreen(),
+          //     ),
+          //   ),
+          //   tooltip: 'Custom Collections',
+          //   child: const Icon(Icons.collections_bookmark, size: 20),
+          // ),
+          body: AnimatedSwitcher( // Add smooth transitions between views
+            duration: const Duration(milliseconds: 300),
+            switchInCurve: Curves.easeOut,
+            switchOutCurve: Curves.easeIn,
+            transitionBuilder: (Widget child, Animation<double> animation) {
+              return FadeTransition(
+                opacity: animation,
+                child: child,
+              );
+            },
+            child: _selectedIndex == 1
+              ? const CollectionAnalytics()
+              : const CollectionGrid(),
           ),
         );
       },
