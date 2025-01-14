@@ -33,10 +33,21 @@ class AuthService {
 
   // Enhanced sign out to clear all sessions
   Future<void> signOut() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.clear(); // Clear any stored credentials
-    await _googleSignIn.signOut();
-    await _auth.signOut();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.clear(); // Clear stored credentials
+      
+      // Clear Google Sign In
+      if (_googleSignIn.currentUser != null) {
+        await _googleSignIn.disconnect();
+        await _googleSignIn.signOut();
+      }
+      
+      // Clear Firebase Auth
+      await _auth.signOut();
+    } catch (e) {
+      print('Error during sign out: $e');
+    }
   }
 
   Future<bool> isUsernameAvailable(String username) async {
@@ -132,10 +143,18 @@ class AuthService {
 
   Future<UserCredential?> signInWithGoogle() async {
     try {
+      // First ensure we're signed out completely
+      await signOut();
+
       if (kIsWeb) {
         // Create a new provider
         GoogleAuthProvider googleProvider = GoogleAuthProvider();
+        
+        // Add persistence
+        await _auth.setPersistence(Persistence.LOCAL);
+        
         googleProvider.setCustomParameters({
+          'prompt': 'select_account', // Force account selection
           'client_id': '977857362801-rs8b2k59qbudfjuba9dmr4bticab8n06.apps.googleusercontent.com'
         });
         
@@ -146,17 +165,22 @@ class AuthService {
         // Try popup first
         try {
           final userCredential = await _auth.signInWithPopup(googleProvider);
-          print('Popup sign in successful: ${userCredential.user?.email}');
-          await _handleSignInSuccess(userCredential);
-          return userCredential;
+          if (userCredential.user != null) {
+            print('Successfully signed in as: ${userCredential.user?.email}');
+            await _handleSignInSuccess(userCredential);
+            return userCredential;
+          }
+          return null;
         } catch (e) {
           print('Popup sign in failed, trying redirect: $e');
           await _auth.signInWithRedirect(googleProvider);
           return null;
         }
       } else {
-        // Original mobile implementation
-        await _googleSignIn.signOut();
+        // Mobile implementation
+        await _auth.setPersistence(Persistence.LOCAL);
+        
+        // Force account selection
         final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
         
         if (googleUser == null) {
@@ -164,24 +188,20 @@ class AuthService {
           return null;
         }
 
-        // Obtain the auth details from the request
         final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
         if (googleAuth.accessToken == null || googleAuth.idToken == null) {
           print('Could not obtain auth tokens');
           return null;
         }
 
-        // Create a new credential
         final credential = GoogleAuthProvider.credential(
           accessToken: googleAuth.accessToken,
           idToken: googleAuth.idToken,
         );
 
-        // Sign in to Firebase with the credential
         final userCredential = await _auth.signInWithCredential(credential);
-        
-        // Create/update user document
         if (userCredential.user != null) {
+          print('Successfully signed in as: ${userCredential.user?.email}');
           await _db.collection('users').doc(userCredential.user!.uid).set({
             'email': userCredential.user!.email,
             'displayName': userCredential.user!.displayName,
@@ -202,6 +222,8 @@ class AuthService {
         print('Platform Error Code: ${e.code}');
         print('Platform Error Message: ${e.message}');
       }
+      // Ensure clean state on error
+      await signOut();
       return null;
     }
   }

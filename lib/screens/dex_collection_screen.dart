@@ -522,127 +522,201 @@ class _DexCollectionScreenState extends State<DexCollectionScreen> {
   }
 
   Widget _buildFilterMenu() {
-    return PopupMenuButton<String>(
-      tooltip: 'Sort and Filter',
-      icon: Stack(
-        children: [
-          const Icon(Icons.tune),
-          if (_selectedType != 'All' || _collectionFilter != 'All' || _sortBy != 'Number')
-            Positioned(
-              right: 0,
-              top: 0,
-              child: Container(
-                padding: const EdgeInsets.all(2),
-                decoration: const BoxDecoration(
-                  color: Colors.red,
-                  shape: BoxShape.circle,
+    return Row(
+      children: [
+        // Add Generation Filter Button
+        PopupMenuButton<String>(
+          tooltip: 'Generation Filter',
+          icon: Stack(
+            children: [
+              Icon(
+                Icons.format_list_numbered,
+                color: _selectedGeneration != 'All' 
+                    ? Theme.of(context).primaryColor 
+                    : null,
+              ),
+              if (_selectedGeneration != 'All')
+                Positioned(
+                  right: 0,
+                  top: 0,
+                  child: Container(
+                    padding: const EdgeInsets.all(2),
+                    decoration: BoxDecoration(
+                      color: GenerationService.getGenerationColor(_selectedGeneration),
+                      shape: BoxShape.circle,
+                    ),
+                    constraints: const BoxConstraints(
+                      minWidth: 12,
+                      minHeight: 12,
+                    ),
+                  ),
                 ),
-                constraints: const BoxConstraints(
-                  minWidth: 12,
-                  minHeight: 12,
-                ),
+            ],
+          ),
+          onSelected: (value) {
+            setState(() {
+              _selectedGeneration = value;
+              _filterPokemon(_searchController.text);
+            });
+          },
+          itemBuilder: (context) => [
+            PopupMenuItem(
+              value: 'All',
+              child: Row(
+                children: [
+                  const Icon(Icons.catching_pokemon),
+                  const SizedBox(width: 8),
+                  const Text('All Generations'),
+                  if (_selectedGeneration == 'All')
+                    const Spacer(),
+                  if (_selectedGeneration == 'All')
+                    const Icon(Icons.check),
+                ],
               ),
             ),
-        ],
-      ),
-      onSelected: (value) {
-        // Handle filter selection
-        final parts = value.split(':');
-        final category = parts[0];
-        final option = parts[1];
-
-        setState(() {
-          switch (category) {
-            case 'type':
-              _selectedType = option;
-              break;
-            case 'collection':
-              _collectionFilter = option;
-              break;
-            case 'sort':
-              if (_sortBy == option) {
-                _sortAscending = !_sortAscending;
-              } else {
-                _sortBy = option;
-                _sortAscending = true;
-              }
-              break;
-          }
-          _filterPokemon(_searchController.text);
-        });
-      },
-      itemBuilder: (context) => [
-        PopupMenuItem(
-          child: ListTile(
-            leading: const Icon(Icons.catching_pokemon),
-            title: const Text('Pokémon Types'),
-            trailing: const Icon(Icons.arrow_right),
-            contentPadding: EdgeInsets.zero,
-            onTap: () {
-              Navigator.pop(context);
-              _showTypeSelector(context);
-            },
-          ),
-        ),
-        const PopupMenuDivider(),
-        const PopupMenuItem(
-          enabled: false,
-          child: Text(
-            'Collection Status',
-            style: TextStyle(fontWeight: FontWeight.bold),
-          ),
-        ),
-        ...['All', 'Collected', 'Missing'].map((status) => PopupMenuItem(
-          value: 'collection:$status',
-          child: Row(
-            children: [
-              Icon(
-                status == 'Collected' ? Icons.check_circle
-                : status == 'Missing' ? Icons.remove_circle
-                : Icons.all_inclusive,
-                size: 20,
+            ...GenerationService.generations.keys.map((gen) => PopupMenuItem(
+              value: gen,
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.format_list_numbered,
+                    color: GenerationService.getGenerationColor(gen),
+                  ),
+                  const SizedBox(width: 8),
+                  Text('Generation ${gen.substring(4)}'),
+                  if (_selectedGeneration == gen)
+                    const Spacer(),
+                  if (_selectedGeneration == gen)
+                    const Icon(Icons.check),
+                ],
               ),
-              const SizedBox(width: 8),
-              Text(status),
-              if (_collectionFilter == status)
-                const Spacer(),
-              if (_collectionFilter == status)
-                const Icon(Icons.check, size: 20),
-            ],
-          ),
-        )),
-        const PopupMenuDivider(),
-        const PopupMenuItem(
-          enabled: false,
-          child: Text(
-            'Sort By',
-            style: TextStyle(fontWeight: FontWeight.bold),
-          ),
+            )),
+          ],
         ),
-        ...['Number', 'Name', 'Collection'].map((sort) => PopupMenuItem(
-          value: 'sort:$sort',
-          child: Row(
+        // Existing Filter Menu
+        PopupMenuButton<String>(
+          tooltip: 'Sort and Filter',
+          icon: Stack(
             children: [
-              Icon(
-                sort == 'Number' ? Icons.tag
-                : sort == 'Name' ? Icons.sort_by_alpha
-                : Icons.style,
-                size: 20,
-              ),
-              const SizedBox(width: 8),
-              Text(sort),
-              if (_sortBy == sort)
-                const Spacer(),
-              if (_sortBy == sort)
-                Icon(
-                  _sortAscending
-                      ? Icons.arrow_upward
-                      : Icons.arrow_downward,
-                  size: 20,
+              const Icon(Icons.tune),
+              if (_selectedType != 'All' || _collectionFilter != 'All' || _sortBy != 'Number')
+                Positioned(
+                  right: 0,
+                  top: 0,
+                  child: Container(
+                    padding: const EdgeInsets.all(2),
+                    decoration: const BoxDecoration(
+                      color: Colors.red,
+                      shape: BoxShape.circle,
+                    ),
+                    constraints: const BoxConstraints(
+                      minWidth: 12,
+                      minHeight: 12,
+                    ),
+                  ),
                 ),
             ],
           ),
-        )),
+          onSelected: (value) {
+            // Handle filter selection
+            final parts = value.split(':');
+            final category = parts[0];
+            final option = parts[1];
+
+            setState(() {
+              switch (category) {
+                case 'type':
+                  _selectedType = option;
+                  break;
+                case 'collection':
+                  _collectionFilter = option;
+                  break;
+                case 'sort':
+                  if (_sortBy == option) {
+                    _sortAscending = !_sortAscending;
+                  } else {
+                    _sortBy = option;
+                    _sortAscending = true;
+                  }
+                  break;
+              }
+              _filterPokemon(_searchController.text);
+            });
+          },
+          itemBuilder: (context) => [
+            PopupMenuItem(
+              child: ListTile(
+                leading: const Icon(Icons.catching_pokemon),
+                title: const Text('Pokémon Types'),
+                trailing: const Icon(Icons.arrow_right),
+                contentPadding: EdgeInsets.zero,
+                onTap: () {
+                  Navigator.pop(context);
+                  _showTypeSelector(context);
+                },
+              ),
+            ),
+            const PopupMenuDivider(),
+            const PopupMenuItem(
+              enabled: false,
+              child: Text(
+                'Collection Status',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ),
+            ...['All', 'Collected', 'Missing'].map((status) => PopupMenuItem(
+              value: 'collection:$status',
+              child: Row(
+                children: [
+                  Icon(
+                    status == 'Collected' ? Icons.check_circle
+                    : status == 'Missing' ? Icons.remove_circle
+                    : Icons.all_inclusive,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(status),
+                  if (_collectionFilter == status)
+                    const Spacer(),
+                  if (_collectionFilter == status)
+                    const Icon(Icons.check, size: 20),
+                ],
+              ),
+            )),
+            const PopupMenuDivider(),
+            const PopupMenuItem(
+              enabled: false,
+              child: Text(
+                'Sort By',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ),
+            ...['Number', 'Name', 'Collection'].map((sort) => PopupMenuItem(
+              value: 'sort:$sort',
+              child: Row(
+                children: [
+                  Icon(
+                    sort == 'Number' ? Icons.tag
+                    : sort == 'Name' ? Icons.sort_by_alpha
+                    : Icons.style,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(sort),
+                  if (_sortBy == sort)
+                    const Spacer(),
+                  if (_sortBy == sort)
+                    Icon(
+                      _sortAscending
+                          ? Icons.arrow_upward
+                          : Icons.arrow_downward,
+                      size: 20,
+                    ),
+                ],
+              ),
+            )),
+          ],
+        ),
       ],
     );
   }
@@ -792,55 +866,310 @@ class _DexCollectionScreenState extends State<DexCollectionScreen> {
   }
 
   Widget _buildDexStats() {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        GestureDetector(
-          onTap: () => setState(() => _showStats = !_showStats),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+    return Card(
+      margin: const EdgeInsets.all(8),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Header row with title and buttons
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 8, 8),
             child: Row(
               children: [
-                const Text(
-                  'Collection Stats',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () => setState(() => _showStats = !_showStats),
+                    child: Row(
+                      children: [
+                        const Text(
+                          'Collection Stats',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
+                        Icon(_showStats ? Icons.expand_less : Icons.expand_more),
+                      ],
+                    ),
                   ),
                 ),
-                const Spacer(),
-                Icon(_showStats ? Icons.expand_less : Icons.expand_more),
+                // Generation Filter
+                PopupMenuButton<String>(
+                  tooltip: 'Generation Filter',
+                  icon: Stack(
+                    children: [
+                      Icon(
+                        Icons.format_list_numbered,
+                        color: _selectedGeneration != 'All' 
+                            ? Theme.of(context).primaryColor 
+                            : null,
+                      ),
+                      if (_selectedGeneration != 'All')
+                        Positioned(
+                          right: 0,
+                          top: 0,
+                          child: Container(
+                            padding: const EdgeInsets.all(2),
+                            decoration: BoxDecoration(
+                              color: GenerationService.getGenerationColor(_selectedGeneration),
+                              shape: BoxShape.circle,
+                            ),
+                            constraints: const BoxConstraints(
+                              minWidth: 12,
+                              minHeight: 12,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                  onSelected: (value) {
+                    setState(() {
+                      _selectedGeneration = value;
+                      _filterPokemon(_searchController.text);
+                    });
+                  },
+                  itemBuilder: (context) => [
+                    PopupMenuItem(
+                      value: 'All',
+                      child: Row(
+                        children: [
+                          const Icon(Icons.catching_pokemon),
+                          const SizedBox(width: 8),
+                          const Text('All Generations'),
+                          if (_selectedGeneration == 'All')
+                            const Spacer(),
+                          if (_selectedGeneration == 'All')
+                            const Icon(Icons.check),
+                        ],
+                      ),
+                    ),
+                    ...GenerationService.generations.keys.map((gen) => PopupMenuItem(
+                      value: gen,
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.format_list_numbered,
+                            color: GenerationService.getGenerationColor(gen),
+                          ),
+                          const SizedBox(width: 8),
+                          Text('Generation ${gen.substring(4)}'),
+                          if (_selectedGeneration == gen)
+                            const Spacer(),
+                          if (_selectedGeneration == gen)
+                            const Icon(Icons.check),
+                        ],
+                      ),
+                    )),
+                  ],
+                ),
+                // Filter and Sort Menu
+                PopupMenuButton<String>(
+                  tooltip: 'Sort and Filter',
+                  icon: Stack(
+                    children: [
+                      const Icon(Icons.tune),
+                      if (_selectedType != 'All' || _collectionFilter != 'All' || _sortBy != 'Number')
+                        Positioned(
+                          right: 0,
+                          top: 0,
+                          child: Container(
+                            padding: const EdgeInsets.all(2),
+                            decoration: const BoxDecoration(
+                              color: Colors.red,
+                              shape: BoxShape.circle,
+                            ),
+                            constraints: const BoxConstraints(
+                              minWidth: 12,
+                              minHeight: 12,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                  onSelected: (value) {
+                    // Handle filter selection
+                    final parts = value.split(':');
+                    final category = parts[0];
+                    final option = parts[1];
+
+                    setState(() {
+                      switch (category) {
+                        case 'type':
+                          _selectedType = option;
+                          break;
+                        case 'collection':
+                          _collectionFilter = option;
+                          break;
+                        case 'sort':
+                          if (_sortBy == option) {
+                            _sortAscending = !_sortAscending;
+                          } else {
+                            _sortBy = option;
+                            _sortAscending = true;
+                          }
+                          break;
+                      }
+                      _filterPokemon(_searchController.text);
+                    });
+                  },
+                  itemBuilder: (context) => [
+                    PopupMenuItem(
+                      child: ListTile(
+                        leading: const Icon(Icons.catching_pokemon),
+                        title: const Text('Pokémon Types'),
+                        trailing: const Icon(Icons.arrow_right),
+                        contentPadding: EdgeInsets.zero,
+                        onTap: () {
+                          Navigator.pop(context);
+                          _showTypeSelector(context);
+                        },
+                      ),
+                    ),
+                    const PopupMenuDivider(),
+                    const PopupMenuItem(
+                      enabled: false,
+                      child: Text(
+                        'Collection Status',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    ...['All', 'Collected', 'Missing'].map((status) => PopupMenuItem(
+                      value: 'collection:$status',
+                      child: Row(
+                        children: [
+                          Icon(
+                            status == 'Collected' ? Icons.check_circle
+                            : status == 'Missing' ? Icons.remove_circle
+                            : Icons.all_inclusive,
+                            size: 20,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(status),
+                          if (_collectionFilter == status)
+                            const Spacer(),
+                          if (_collectionFilter == status)
+                            const Icon(Icons.check, size: 20),
+                        ],
+                      ),
+                    )),
+                    const PopupMenuDivider(),
+                    const PopupMenuItem(
+                      enabled: false,
+                      child: Text(
+                        'Sort By',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    ...['Number', 'Name', 'Collection'].map((sort) => PopupMenuItem(
+                      value: 'sort:$sort',
+                      child: Row(
+                        children: [
+                          Icon(
+                            sort == 'Number' ? Icons.tag
+                            : sort == 'Name' ? Icons.sort_by_alpha
+                            : Icons.style,
+                            size: 20,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(sort),
+                          if (_sortBy == sort)
+                            const Spacer(),
+                          if (_sortBy == sort)
+                            Icon(
+                              _sortAscending
+                                  ? Icons.arrow_upward
+                                  : Icons.arrow_downward,
+                              size: 20,
+                            ),
+                        ],
+                      ),
+                    )),
+                  ],
+                ),
               ],
             ),
           ),
-        ),
-        if (_showStats)
-          Container(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                _buildStatCard(
-                  'Total Pokémon',
-                  _allPokemon.length.toString(),
-                  Icons.catching_pokemon,
+          // Active filters row
+          if (_selectedType != 'All' || _collectionFilter != 'All' || _sortBy != 'Number')
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    if (_selectedType != 'All')
+                      Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: Chip(
+                          visualDensity: VisualDensity.compact,
+                          avatar: Icon(_getTypeIcon(_selectedType), size: 16),
+                          label: Text(_selectedType),
+                          onDeleted: () => setState(() {
+                            _selectedType = 'All';
+                            _filterPokemon(_searchController.text);
+                          }),
+                        ),
+                      ),
+                    if (_collectionFilter != 'All')
+                      Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: Chip(
+                          visualDensity: VisualDensity.compact,
+                          avatar: const Icon(Icons.folder, size: 16),
+                          label: Text(_collectionFilter),
+                          onDeleted: () => setState(() {
+                            _collectionFilter = 'All';
+                            _filterPokemon(_searchController.text);
+                          }),
+                        ),
+                      ),
+                    if (_sortBy != 'Number' || !_sortAscending)
+                      Chip(
+                        visualDensity: VisualDensity.compact,
+                        avatar: Icon(
+                          _sortAscending ? Icons.arrow_upward : Icons.arrow_downward,
+                          size: 16,
+                        ),
+                        label: Text('Sort: $_sortBy'),
+                        onDeleted: () => setState(() {
+                          _sortBy = 'Number';
+                          _sortAscending = true;
+                          _filterPokemon(_searchController.text);
+                        }),
+                      ),
+                  ],
                 ),
-                _buildStatCard(
-                  'Collected',
-                  '${_collectedCount ?? 0}',
-                  Icons.check_circle,
-                  color: Colors.green,
-                ),
-                _buildStatCard(
-                  'Total Value',
-                  '€${_totalValue?.toStringAsFixed(2) ?? '0.00'}',
-                  Icons.euro,
-                  color: Colors.blue,
-                ),
-              ],
+              ),
             ),
-          ),
-      ],
+          // Stats cards
+          if (_showStats)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  _buildStatCard(
+                    'Total Pokémon',
+                    _allPokemon.length.toString(),
+                    Icons.catching_pokemon,
+                  ),
+                  _buildStatCard(
+                    'Collected',
+                    '${_collectedCount ?? 0}',
+                    Icons.check_circle,
+                    color: Colors.green,
+                  ),
+                  _buildStatCard(
+                    'Total Value',
+                    '€${_totalValue?.toStringAsFixed(2) ?? '0.00'}',
+                    Icons.euro,
+                    color: Colors.blue,
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
     );
   }
 
@@ -865,43 +1194,6 @@ class _DexCollectionScreenState extends State<DexCollectionScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Dex Collection'),
-        actions: [
-          _buildFilterMenu(),
-        ],
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(48),
-          child: Container(
-            color: Theme.of(context).colorScheme.surface,
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              child: Row(
-                children: [
-                  const SizedBox(width: 8),
-                  _buildFilterButton(
-                    'All',
-                    Icons.catching_pokemon,
-                    isSelected: _selectedGeneration == 'All',
-                    onTap: () => _selectGeneration('All'),
-                  ),
-                  ...GenerationService.generations.keys.map((gen) => 
-                    _buildFilterButton(
-                      gen.substring(4),
-                      Icons.format_list_numbered,
-                      isSelected: _selectedGeneration == gen,
-                      color: GenerationService.getGenerationColor(gen),
-                      onTap: () => _selectGeneration(gen),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
       body: Column(
         children: [
           _buildDexStats(),
@@ -931,7 +1223,6 @@ class _DexCollectionScreenState extends State<DexCollectionScreen> {
               onChanged: _filterPokemon,
             ),
           ),
-          _buildActiveFilters(),
           Expanded(
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())

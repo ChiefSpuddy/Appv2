@@ -696,12 +696,6 @@ class _SearchScreenState extends State<SearchScreen> {
                       elevation: 0,
                       backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
                       iconTheme: Theme.of(context).appBarTheme.iconTheme,
-                      title: Text(
-                        'TCG Card Search',
-                        style: TextStyle(
-                          color: Theme.of(context).appBarTheme.foregroundColor,
-                        ),
-                      ),
                       actions: [
                         // Add clear button before the menu
                         IconButton(

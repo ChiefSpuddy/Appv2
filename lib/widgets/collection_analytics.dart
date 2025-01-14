@@ -55,7 +55,6 @@ class CollectionAnalytics extends StatelessWidget {
                 children: [
                   _buildSummaryCards(stats),
                   const SizedBox(height: 16),
-                  _buildHeader(context),
                   const SizedBox(height: 16),
                   _buildPriceHistory(_collectionService),
                   const SizedBox(height: 24),
@@ -77,20 +76,6 @@ class CollectionAnalytics extends StatelessWidget {
           ),
         );
       },
-    );
-  }
-
-  Widget _buildHeader(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Theme.of(context).primaryColor, Theme.of(context).primaryColor.withOpacity(0.8)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(12),
-      ),
     );
   }
 
