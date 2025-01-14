@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'search_screen.dart';
+import 'profile_screen.dart';
 import 'collection_screen.dart';
 import 'home_overview.dart';
 import '../providers/theme_provider.dart';
@@ -28,6 +29,7 @@ class HomeScreenState extends State<HomeScreen> {
     SearchScreen(),
     CollectionScreen(),
     DexCollectionScreen(),  // Update this line
+    ProfileScreen(),  // Now this will work with const
   ];
 
   void onNavItemTapped(int index) {
@@ -63,6 +65,11 @@ class HomeScreenState extends State<HomeScreen> {
             icon: Icon(Icons.catching_pokemon),
             selectedIcon: Icon(Icons.catching_pokemon),
             label: 'Dex',  // Changed from 'Pokémon'
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.person_outline),
+            selectedIcon: Icon(Icons.person),
+            label: 'Profile',
           ),
         ],
       ),

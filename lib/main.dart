@@ -6,6 +6,7 @@ import 'firebase_options.dart';
 import 'screens/home_screen.dart';
 import 'screens/auth_screen.dart';
 import 'screens/search_screen.dart';
+import 'screens/profile_screen.dart';  // Add this import
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'services/theme_service.dart';
@@ -64,6 +65,7 @@ class MyApp extends StatelessWidget {
               '/search': (context) => SearchScreen(
                 initialQuery: ModalRoute.of(context)?.settings.arguments as String?,
               ),
+              '/profile': (context) => ProfileScreen(),
               // ...other existing routes...
             },
           );
