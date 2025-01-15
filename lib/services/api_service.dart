@@ -55,10 +55,10 @@ class ApiService {
       'description': 'Special Illustration Rare Cards (Modern)',
     },
     {
-      'name': 'Promos',
+      'name': 'Trending',
       'icon': '🌟',
-      'query': 'set.series:"Promo"',
-      'description': 'Promotional Cards',
+      'query': 'rarity:"Special Illustration Rare" set.series:"Scarlet & Violet"',
+      'description': 'Special Illustration Rare Cards',
     },
     {
       'name': 'Full Art',
@@ -218,6 +218,63 @@ class ApiService {
       return null;
     } catch (e) {
       print('Error fetching card pricing: $e');
+      return null;
+    }
+  }
+
+  // Add new method to fetch trending cards
+  Future<Map<String, dynamic>> getTrendingCards({
+    int page = 1,
+    int pageSize = 20,
+  }) async {
+    try {
+      final url = Uri.parse('$_baseUrl/cards').replace(
+        queryParameters: {
+          'q': 'cardmarket.prices.avg30:>=10 cardmarket.prices.avg1:>cardmarket.prices.avg30',
+          'orderBy': '-cardmarket.prices.averageSellPrice',
+          'page': page.toString(),
+          'pageSize': pageSize.toString(),
+          'select': 'id,name,number,set,rarity,cardmarket,images',
+        },
+      );
+
+      final response = await http.get(url, headers: _headers);
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final cards = _parseCards(data['data']);
+        
+        // Sort by price increase percentage
+        cards.sort((a, b) {
+          final aIncrease = _calculatePriceIncrease(data['data'].firstWhere((c) => c['id'] == a.id));
+          final bIncrease = _calculatePriceIncrease(data['data'].firstWhere((c) => c['id'] == b.id));
+          return (bIncrease ?? 0).compareTo(aIncrease ?? 0);
+        });
+
+        return {
+          'cards': cards,
+          'totalCount': data['totalCount'] ?? 0,
+          'page': data['page'] ?? page,
+          'pageSize': data['pageSize'] ?? pageSize,
+        };
+      }
+      return {'cards': [], 'totalCount': 0};
+    } catch (e) {
+      print('Error fetching trending cards: $e');
+      return {'cards': [], 'totalCount': 0};
+    }
+  }
+
+  double? _calculatePriceIncrease(Map<String, dynamic> cardData) {
+    try {
+      final prices = cardData['cardmarket']['prices'];
+      final currentPrice = prices['averageSellPrice'] as num?;
+      final avg30 = prices['avg30'] as num?;
+      
+      if (currentPrice == null || avg30 == null || avg30 == 0) return null;
+      
+      return ((currentPrice - avg30) / avg30) * 100;
+    } catch (e) {
       return null;
     }
   }
