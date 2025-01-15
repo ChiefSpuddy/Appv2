@@ -24,8 +24,8 @@ Future<void> main() async {
       options: DefaultFirebaseOptions.currentPlatform,
     );
     
-    // Remove the Google Sign-In initialization from here
-    // It will be handled directly by Firebase Auth
+    // Add this line to persist auth state
+    await FirebaseAuth.instance.setPersistence(Persistence.LOCAL);
     
   } catch (e) {
     debugPrint('Firebase initialization error: $e');

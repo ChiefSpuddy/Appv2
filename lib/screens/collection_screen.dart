@@ -25,8 +25,7 @@ class _CollectionScreenState extends State<CollectionScreen> {
   static final _authService = AuthService();
 
   void _switchView(int index) {
-    if (_selectedIndex == index) return; // Don't reload if already selected
-    
+    if (_selectedIndex == index) return;
     setState(() => _selectedIndex = index);
   }
 
@@ -102,93 +101,87 @@ class _CollectionScreenState extends State<CollectionScreen> {
 
         // User is authenticated, show collection
         return Scaffold(
-          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+          backgroundColor: isDark ? Colors.black : Theme.of(context).scaffoldBackgroundColor,
           appBar: AppBar(
             automaticallyImplyLeading: false,
             elevation: 0,
-            backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
-            title: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              child: SegmentedButton<int>(
-                segments: [
-                  ButtonSegment<int>(
-                    value: 0,
-                    icon: Icon(
-                      Icons.account_balance_wallet,  // Changed icon
-                      color: _selectedIndex == 0 
-                          ? Colors.white.withOpacity(0.95)
-                          : isDark ? Colors.grey[300] : Colors.grey[800],
-                      size: 22,
-                    ),
-                    label: const Text('Portfolio'),  // Changed label
-                  ),
-                  ButtonSegment<int>(
-                    value: 1,
-                    icon: Icon(
-                      Icons.analytics,
-                      color: _selectedIndex == 1
-                          ? Colors.white.withOpacity(0.95)
-                          : isDark ? Colors.grey[300] : Colors.grey[800],
-                      size: 22,
-                    ),
-                    label: const Text('Analytics'),
-                  ),
-                  ButtonSegment<int>(
-                    value: 2,
-                    icon: Icon(
-                      Icons.collections_bookmark,
-                      color: _selectedIndex == 2
-                          ? Colors.white.withOpacity(0.95)
-                          : isDark ? Colors.grey[300] : Colors.grey[800],
-                      size: 22,
-                    ),
-                    label: const Text('Collections'),
-                  ),
-                ],
-                selected: {_selectedIndex},
-                onSelectionChanged: (Set<int> newSelection) {
-                  final index = newSelection.first;
-                  if (index == 2) {
-                    // Instead of pushing and then switching back, just navigate
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const CustomCollectionsScreen(),
+            backgroundColor: isDark ? Colors.black : Theme.of(context).appBarTheme.backgroundColor,
+            surfaceTintColor: Colors.transparent,  // Add this to remove any material 3 tint
+            centerTitle: true, // Add this line to center the title
+            title: ConstrainedBox(  // Wrap in ConstrainedBox for width control
+              constraints: const BoxConstraints(maxWidth: 400),  // Limit max width
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),  // Remove left padding
+                child: SegmentedButton<int>(
+                  segments: [
+                    ButtonSegment<int>(
+                      value: 0,
+                      icon: Icon(
+                        Icons.account_balance_wallet,
+                        color: _selectedIndex == 0 
+                            ? Colors.white  // Always white when selected
+                            : isDark ? Colors.grey[300] : Colors.grey[800],
+                        size: 22,
                       ),
-                    );
-                    // Don't update the selected index
-                    return;
-                  }
-                  _switchView(index);
-                },
-                style: ButtonStyle(
-                  backgroundColor: MaterialStateProperty.resolveWith<Color?>(
-                    (states) {
-                      if (states.contains(MaterialState.selected)) {
-                        return Theme.of(context).primaryColor.withOpacity(0.9);
-                      }
-                      return isDark 
-                        ? Colors.grey[850]?.withOpacity(0.7) 
-                        : Colors.grey[200]?.withOpacity(0.8);
-                    },
-                  ),
-                  side: MaterialStateProperty.resolveWith<BorderSide>(
-                    (states) {
-                      if (states.contains(MaterialState.selected)) {
-                        return BorderSide.none;
-                      }
-                      return BorderSide(
-                        color: isDark ? Colors.white30 : Colors.black26,
-                        width: 1.0,
-                      );
-                    },
-                  ),
-                  padding: MaterialStateProperty.all(
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  ),
-                  shape: MaterialStateProperty.all(
-                    RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
+                      label: const Text('Portfolio'),
+                    ),
+                    ButtonSegment<int>(
+                      value: 1,
+                      icon: Icon(
+                        Icons.analytics,
+                        color: _selectedIndex == 1
+                            ? Colors.white  // Always white when selected
+                            : isDark ? Colors.grey[300] : Colors.grey[800],
+                        size: 22,
+                      ),
+                      label: const Text('Analytics'),
+                    ),
+                    ButtonSegment<int>(
+                      value: 2,
+                      icon: Icon(
+                        Icons.collections_bookmark,
+                        color: _selectedIndex == 2
+                            ? Colors.white  // Always white when selected
+                            : isDark ? Colors.grey[300] : Colors.grey[800],
+                        size: 22,
+                      ),
+                      label: const Text('Collections'),
+                    ),
+                  ],
+                  selected: {_selectedIndex},
+                  onSelectionChanged: (Set<int> newSelection) {
+                    final index = newSelection.first;
+                    _switchView(index);
+                  },
+                  style: ButtonStyle(
+                    backgroundColor: MaterialStateProperty.resolveWith<Color?>(
+                      (states) {
+                        if (states.contains(MaterialState.selected)) {
+                          return Colors.green.shade600;  // Change to green
+                        }
+                        return isDark 
+                          ? Colors.black  // Changed from Colors.grey[850]
+                          : Colors.grey[200]?.withOpacity(0.8);
+                      },
+                    ),
+                    side: MaterialStateProperty.resolveWith<BorderSide>(
+                      (states) {
+                        if (states.contains(MaterialState.selected)) {
+                          return BorderSide.none;
+                        }
+                        return BorderSide(
+                          color: isDark ? Colors.white30 : Colors.black26,
+                          width: 1.0,
+                        );
+                      },
+                    ),
+                    padding: MaterialStateProperty.all(
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 0),  // Reduce padding
+                    ),
+                    shape: MaterialStateProperty.all(
+                      RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
                     ),
                   ),
                 ),
@@ -364,7 +357,9 @@ class _CollectionScreenState extends State<CollectionScreen> {
             },
             child: _selectedIndex == 1
               ? const CollectionAnalytics()
-              : const CollectionGrid(),
+              : _selectedIndex == 2
+                ? const CustomCollectionsScreen()
+                : const CollectionGrid(),
           ),
         );
       },

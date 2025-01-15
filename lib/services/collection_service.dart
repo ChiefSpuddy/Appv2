@@ -1064,36 +1064,87 @@ class CollectionService {
           .collection('customCollections')
           .doc(collectionId);
 
-      // Get current cardIds
       final doc = await collectionRef.get();
       if (!doc.exists) return;
 
       final cardIds = List<String>.from(doc.data()?['cardIds'] ?? []);
-      if (cardIds.isEmpty) {
-        // If collection is empty, just update with 0 value
-        final historyEntry = {
-          'value': 0.0,
-          'timestamp': Timestamp.now(),  // Use Timestamp instead of serverTimestamp
-        };
-
-        await collectionRef.update({
-          'priceHistory': FieldValue.arrayUnion([historyEntry]),
-        });
-        return;
-      }
-
       final totalValue = await calculateCollectionValue(cardIds);
-      final historyEntry = {
+      
+      // Get existing price history
+      final priceHistory = List<Map<String, dynamic>>.from(
+        doc.data()?['priceHistory'] ?? []
+      );
+
+      // Add new entry
+      final newEntry = {
         'value': totalValue,
-        'timestamp': Timestamp.now(),  // Use Timestamp instead of serverTimestamp
+        'timestamp': Timestamp.now(),
       };
 
+      // Keep only last 30 days of history
+      final thirtyDaysAgo = DateTime.now().subtract(const Duration(days: 30));
+      priceHistory.removeWhere((entry) =>
+          (entry['timestamp'] as Timestamp).toDate().isBefore(thirtyDaysAgo));
+      
+      priceHistory.add(newEntry);
+
       await collectionRef.update({
-        'priceHistory': FieldValue.arrayUnion([historyEntry]),
+        'priceHistory': priceHistory,
+        'lastUpdated': FieldValue.serverTimestamp(),
+        'totalValue': totalValue,
+        'avgCardValue': cardIds.isEmpty ? 0 : totalValue / cardIds.length,
+        'performance': {
+          'daily': await _calculateDailyPerformance(priceHistory),
+          'weekly': await _calculateWeeklyPerformance(priceHistory),
+          'monthly': await _calculateMonthlyPerformance(priceHistory),
+        },
       });
     } catch (e) {
-      print('Error updating collection price history: $e');
+      debugPrint('Error updating collection price history: $e');
     }
+  }
+
+  Future<Map<String, dynamic>> _calculateDailyPerformance(
+    List<Map<String, dynamic>> priceHistory
+  ) async {
+    if (priceHistory.length < 2) return {'change': 0, 'percentage': 0};
+
+    final latest = priceHistory.last['value'] as double;
+    final yesterday = DateTime.now().subtract(const Duration(days: 1));
+    
+    final previousEntry = priceHistory
+        .where((entry) => (entry['timestamp'] as Timestamp)
+            .toDate()
+            .isBefore(yesterday))
+        .lastOrNull;
+
+    if (previousEntry == null) return {'change': 0, 'percentage': 0};
+
+    final previous = previousEntry['value'] as double;
+    final change = latest - previous;
+    final percentage = previous > 0 ? (change / previous) * 100 : 0;
+
+    return {
+      'change': change,
+      'percentage': percentage,
+      'timestamp': Timestamp.now(),
+    };
+  }
+
+  Future<Map<String, dynamic>> _calculateWeeklyPerformance(
+    List<Map<String, dynamic>> priceHistory
+  ) async {
+    // Similar to daily but with 7 days
+    // ...implementation
+    return {'change': 0, 'percentage': 0};
+  }
+
+  Future<Map<String, dynamic>> _calculateMonthlyPerformance(
+    List<Map<String, dynamic>> priceHistory
+  ) async {
+    // Similar to daily but with 30 days
+    // ...implementation
+    return {'change': 0, 'percentage': 0};
   }
 
   Future<Map<String, dynamic>> calculateCollectorScore(List<DocumentSnapshot> cards) async {

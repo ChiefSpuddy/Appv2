@@ -214,11 +214,13 @@ class CustomCollectionsScreen extends StatelessWidget {
           );
         },
       ),
-      floatingActionButton: FloatingActionButton.small(  // Changed to small
-        heroTag: 'custom_collections_fab',
-        tooltip: 'Create Custom Collection',  // Added tooltip
-        onPressed: () => _createNewCollection(context, service),
-        child: const Icon(Icons.add, size: 20),  // Reduced icon size
+      floatingActionButton: FloatingActionButton.extended(
+        heroTag: 'createCollection',  // Add this if you have multiple FABs
+        onPressed: () => _createNewCollection(context, CollectionService()), // Change this line
+        backgroundColor: Colors.green.shade600,  // Add this
+        foregroundColor: Colors.white,  // Add this
+        label: const Text('Create Collection'),
+        icon: const Icon(Icons.add),
       ),
     );
   }
@@ -404,9 +406,32 @@ class CustomCollectionsScreen extends StatelessWidget {
     }
   }
 
-  Widget _buildCollectionCard(BuildContext context, CustomCollection collection) { // Add context parameter
+  Widget _buildCollectionCard(BuildContext context, CustomCollection collection) {
+    final priceHistory = collection.priceHistory;
+    double? growth24h;
+    double? growthPercentage;
+    
+    if (priceHistory.length >= 2) {
+      final now = DateTime.now();
+      final yesterday = now.subtract(const Duration(days: 1));
+      
+      final latestPrice = collection.totalValue ?? 0;
+      final previousPrice = priceHistory
+          .where((entry) => (entry['timestamp'] as Timestamp)
+              .toDate()
+              .isAfter(yesterday))
+          .firstOrNull?['value'] as double? ?? latestPrice;
+      
+      growth24h = latestPrice - previousPrice;
+      growthPercentage = previousPrice > 0 ? (growth24h / previousPrice) * 100 : 0;
+    }
+
     return Card(
-      margin: const EdgeInsets.only(bottom: 16),
+      margin: const EdgeInsets.only(bottom: 12),
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
       child: InkWell(
         onTap: () => Navigator.push(
           context,
@@ -417,83 +442,211 @@ class CustomCollectionsScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Add card preview
-            StreamBuilder<List<TcgCard>>(
-              stream: CollectionService().getCollectionCardsStream(collection.id),
-              builder: (context, snapshot) {
-                final cards = snapshot.data ?? [];
-                if (cards.isEmpty) {
-                  return const SizedBox(height: 100);
-                }
+            // Card Preview Section with gradient overlay
+            Container(
+              height: 120,
+              decoration: BoxDecoration(
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.black.withOpacity(0.4),
+                    Colors.transparent,
+                  ],
+                ),
+              ),
+              child: StreamBuilder<List<TcgCard>>(
+                stream: CollectionService().getCollectionCardsStream(collection.id),
+                builder: (context, snapshot) {
+                  final cards = snapshot.data ?? [];
+                  if (cards.isEmpty) {
+                    return const Center(
+                      child: Icon(Icons.collections_bookmark_outlined, 
+                        size: 48, color: Colors.white70),
+                    );
+                  }
 
-                return SizedBox(
-                  height: 100,
-                  child: ListView.builder(
+                  return ListView.builder(
                     scrollDirection: Axis.horizontal,
                     padding: const EdgeInsets.all(8),
-                    itemCount: cards.length.clamp(0, 5), // Show up to 5 cards
+                    itemCount: cards.length.clamp(0, 5),
                     itemBuilder: (context, index) {
                       return Padding(
                         padding: const EdgeInsets.only(right: 8),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
-                          child: Image.network(
-                            cards[index].imageUrl,
-                            width: 70,
-                            height: 100,
-                            fit: BoxFit.cover,
+                        child: Hero(
+                          tag: 'card_${cards[index].id}_preview',
+                          child: Container(
+                            width: 80,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(8),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.2),
+                                  blurRadius: 4,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: Image.network(
+                                cards[index].imageUrl,
+                                fit: BoxFit.cover,
+                              ),
+                            ),
                           ),
                         ),
                       );
                     },
-                  ),
-                );
-              },
+                  );
+                },
+              ),
             ),
-            // Collection info
+            // Collection Info Section
             Padding(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    collection.name,
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  if (collection.description.isNotEmpty) ...[
-                    const SizedBox(height: 4),
-                    Text(
-                      collection.description,
-                      style: TextStyle(
-                        color: Colors.grey[600],
-                        fontSize: 14,
-                      ),
-                    ),
-                  ],
-                  const SizedBox(height: 8),
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        '${collection.cardIds.length} cards',
-                        style: TextStyle(
-                          color: Colors.grey[600],
-                          fontSize: 14,
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              collection.name,
+                              style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            if (collection.description.isNotEmpty) ...[
+                              const SizedBox(height: 4),
+                              Text(
+                                collection.description,
+                                style: TextStyle(
+                                  color: Colors.grey[600],
+                                  fontSize: 13,
+                                ),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          ],
                         ),
                       ),
-                      if (collection.totalValue != null)
-                        Text(
-                          '€${collection.totalValue!.toStringAsFixed(2)}',
-                          style: TextStyle(
-                            color: Colors.green[700],
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
+                      IconButton(
+                        icon: const Icon(Icons.more_vert),
+                        onPressed: () => _showCollectionMenu(
+                          context, collection, CollectionService(),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  // Stats Row
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).cardColor,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: Colors.grey.withOpacity(0.2),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        // Cards & Value
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Icon(Icons.style,
+                                    size: 16,
+                                    color: Colors.grey[600],
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    '${collection.cardIds.length} cards',
+                                    style: const TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              if (collection.totalValue != null) ...[
+                                const SizedBox(height: 4),
+                                Text(
+                                  '€${collection.totalValue!.toStringAsFixed(2)}',
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color: Theme.of(context).primaryColor,
+                                  ),
+                                ),
+                              ],
+                            ],
                           ),
                         ),
-                    ],
+                        // 24h Change
+                        if (growth24h != null)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 8,
+                            ),
+                            decoration: BoxDecoration(
+                              color: growth24h >= 0
+                                  ? Colors.green.withOpacity(0.1)
+                                  : Colors.red.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                Text(
+                                  '24h',
+                                  style: TextStyle(
+                                    color: Colors.grey[600],
+                                    fontSize: 12,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      growth24h >= 0
+                                          ? Icons.arrow_upward
+                                          : Icons.arrow_downward,
+                                      size: 14,
+                                      color: growth24h >= 0
+                                          ? Colors.green[700]
+                                          : Colors.red[700],
+                                    ),
+                                    const SizedBox(width: 2),
+                                    Text(
+                                      '${growthPercentage!.abs().toStringAsFixed(1)}%',
+                                      style: TextStyle(
+                                        color: growth24h >= 0
+                                            ? Colors.green[700]
+                                            : Colors.red[700],
+                                        fontWeight: FontWeight.w500,
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                      ],
+                    ),
                   ),
                 ],
               ),

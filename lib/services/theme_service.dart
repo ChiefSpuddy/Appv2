@@ -1,3 +1,4 @@
+import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';  // Fixed import
 
@@ -32,7 +33,11 @@ class ThemeService extends ChangeNotifier {
 
   static final _lightTheme = ThemeData(
     brightness: Brightness.light,
-    primarySwatch: Colors.blue,
+    primarySwatch: Colors.green,  // Change from blue to green
+    floatingActionButtonTheme: FloatingActionButtonThemeData(
+      backgroundColor: Colors.green.shade600,  // Add this
+      foregroundColor: Colors.white,  // Add this
+    ),
     scaffoldBackgroundColor: Colors.white,
     appBarTheme: const AppBarTheme(
       elevation: 0,
@@ -48,13 +53,20 @@ class ThemeService extends ChangeNotifier {
 
   static final _darkTheme = ThemeData(
     brightness: Brightness.dark,
-    primarySwatch: Colors.blue,
-    scaffoldBackgroundColor: Colors.grey[900],
-    appBarTheme: AppBarTheme(
+    primarySwatch: Colors.green,  // Change from blue to green
+    floatingActionButtonTheme: FloatingActionButtonThemeData(
+      backgroundColor: Colors.green.shade600,  // Add this
+      foregroundColor: Colors.white,  // Add this
+    ),
+    scaffoldBackgroundColor: Colors.black,  // Changed to black
+    canvasColor: Colors.black,  // Add this
+    appBarTheme: const AppBarTheme(
       elevation: 0,
-      backgroundColor: Colors.grey[900],
-      iconTheme: const IconThemeData(color: Colors.white),
-      titleTextStyle: const TextStyle(
+      backgroundColor: Colors.black,  // Explicitly set to black
+      surfaceTintColor: Colors.black, // Add this to ensure no color tint
+      systemOverlayStyle: SystemUiOverlayStyle.light,  // Add this
+      iconTheme: IconThemeData(color: Colors.white),
+      titleTextStyle: TextStyle(
         color: Colors.white,
         fontSize: 20,
         fontWeight: FontWeight.bold,
