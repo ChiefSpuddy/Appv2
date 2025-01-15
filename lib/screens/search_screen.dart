@@ -257,6 +257,103 @@ class _SearchScreenState extends State<SearchScreen> {
     );
   }
 
+  Widget _buildQuickSearches() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Special Keywords section
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+          child: Text(
+            'Quick Filters',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? Colors.white
+                  : Colors.black87,
+            ),
+          ),
+        ),
+        SizedBox(
+          height: 48,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            itemCount: ApiService.quickSearchKeywords.length,
+            itemBuilder: (context, index) {
+              final keyword = ApiService.quickSearchKeywords[index];
+              return Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: Tooltip(
+                  message: keyword['description'],
+                  child: ActionChip(
+                    avatar: Text(
+                      keyword['icon'],
+                      style: const TextStyle(fontSize: 14),
+                    ),
+                    label: Text(keyword['name']),
+                    onPressed: () {
+                      setState(() {
+                        _searchController.text = keyword['name'];
+                        _sortBy = 'price:desc'; // Default to price high-low
+                      });
+                      _performSearch(keyword['name']);
+                    },
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+        const SizedBox(height: 8),
+        // Recent Sets section
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+          child: Text(
+            'Recent Sets',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? Colors.white
+                  : Colors.black87,
+            ),
+          ),
+        ),
+        SizedBox(
+          height: 48,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            itemCount: ApiService.quickSearchSets.length,
+            itemBuilder: (context, index) {
+              final set = ApiService.quickSearchSets[index];
+              return Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: ActionChip(
+                  avatar: Text(
+                    set['icon']!,
+                    style: const TextStyle(fontSize: 14),
+                  ),
+                  label: Text(set['name']!),
+                  onPressed: () {
+                    setState(() {
+                      _searchController.text = set['name']!;
+                      _sortBy = 'price:desc';
+                    });
+                    _performSearch(set['name']!);
+                  },
+                ),
+              );
+            },
+          ),
+        ),
+        const Divider(),
+      ],
+    );
+  }
+
   Widget _buildRecentSearches() {
     return StreamBuilder<QuerySnapshot>(
       key: const ValueKey('recentSearches'),  // Add a stable key
@@ -302,6 +399,7 @@ class _SearchScreenState extends State<SearchScreen> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            _buildQuickSearches(),  // Add Quick Searches section
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: Row(

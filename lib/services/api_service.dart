@@ -40,6 +40,34 @@ class ApiService {
     'date:desc': '-set.releaseDate',
   };
 
+  // Add this getter for special search keywords
+  static List<Map<String, dynamic>> get quickSearchKeywords => [
+    {
+      'name': 'Vintage',
+      'icon': '🏆',
+      'query': '(set.series:"Base" or set.series:"Gym" or set.series:"Neo" or set.series:"Legendary" or set.series:"Rocket")',
+      'description': 'WOTC Era Cards',
+    },
+    {
+      'name': 'Special Illustration',
+      'icon': '💎',
+      'query': '(rarity:"Special Illustration Rare" or rarity:"Special Art Rare") set.series:"Scarlet & Violet"',
+      'description': 'Special Illustration Rare Cards (Modern)',
+    },
+    {
+      'name': 'Promos',
+      'icon': '🌟',
+      'query': 'set.series:"Promo"',
+      'description': 'Promotional Cards',
+    },
+    {
+      'name': 'Full Art',
+      'icon': '🎨',
+      'query': 'subtypes:"Full Art"',
+      'description': 'Full Art Cards',
+    },
+  ];
+
   Future<Map<String, dynamic>> searchCards(
     String query, {
     String sortBy = 'name:asc',
@@ -50,18 +78,30 @@ class ApiService {
     if (query.trim().isEmpty) return {'cards': [], 'totalCount': 0};
 
     try {
-      // Generate cache key for this search
       final cacheKey = _generateCacheKey(query, '', sortBy, rareOnly, page, pageSize);
       
-      // Check cache first
       if (_isCacheValid(cacheKey) && _cache.containsKey(cacheKey)) {
         return _cache[cacheKey]!;
       }
 
-      // Simplify search query - just use the raw query
-      var searchQuery = 'name:"*${query.trim()}*"';
+      // Check for special keywords first
+      final specialSearch = quickSearchKeywords.firstWhere(
+        (k) => k['name'].toLowerCase() == query.toLowerCase(),
+        orElse: () => {'query': ''},
+      );
+
+      // Check if the query is a set name from quickSearchSets
+      final isSetSearch = quickSearchSets.any(
+        (set) => set['name']!.toLowerCase() == query.toLowerCase()
+      );
+
+      // Build search query string
+      var searchQuery = specialSearch['query'].isNotEmpty
+          ? specialSearch['query']
+          : isSetSearch 
+              ? 'set.name:"$query"'
+              : 'name:"*${query.trim()}*"';
       
-      // Add rarity filter if needed
       if (rareOnly) {
         searchQuery += ' (rarity:rare or rarity:"rare holo" or rarity:"rare ultra")';
       }
@@ -113,6 +153,36 @@ class ApiService {
       return {'cards': [], 'totalCount': 0};
     }
   }
+
+  // Add this static getter for quick search sets
+  static List<Map<String, String>> get quickSearchSets => [
+    {
+      'name': 'Prismatic Evolutions',
+      'icon': '💫',
+      'releaseDate': '2024-03-22',
+    },
+    {
+      'name': 'Surging Sparks',
+      'icon': '⚡',
+      'releaseDate': '2024-01-26',
+    },
+    {
+      'name': 'Paradox Rift',
+      'icon': '🌀',
+      'releaseDate': '2023-11-03',
+    },
+    {
+      'name': 'Paldea Evolved',
+      'icon': '🌟',
+      'releaseDate': '2023-06-30',
+    },
+    {
+      'name': 'Scarlet & Violet',
+      'icon': '🔮',
+      'releaseDate': '2023-03-31',
+    },
+    // Add more sets as needed
+  ];
 
   Future<Map<String, dynamic>?> getCardPricing(String cardId) async {
     try {
