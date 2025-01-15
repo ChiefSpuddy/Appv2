@@ -6,6 +6,7 @@ import 'home_overview.dart';
 import '../providers/theme_provider.dart';
 import 'package:provider/provider.dart';
 import 'dex_collection_screen.dart';  // Update this import
+import '../widgets/collection_analytics.dart';  // Add this import
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -28,6 +29,7 @@ class HomeScreenState extends State<HomeScreen> {
     HomeOverview(),
     SearchScreen(),
     CollectionScreen(),
+    CollectionAnalytics(), // Add Analytics here
     DexCollectionScreen(),  // Update this line
     ProfileScreen(),  // Now this will work with const
   ];
@@ -60,6 +62,11 @@ class HomeScreenState extends State<HomeScreen> {
             icon: Icon(Icons.collections_outlined),
             selectedIcon: Icon(Icons.collections),
             label: 'Collection',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.analytics_outlined),
+            selectedIcon: Icon(Icons.analytics),
+            label: 'Analytics',
           ),
           NavigationDestination(
             icon: Icon(Icons.catching_pokemon),

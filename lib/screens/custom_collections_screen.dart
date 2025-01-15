@@ -9,7 +9,7 @@ import '../models/card_model.dart';
 import '../widgets/card_item.dart';
 import '../widgets/background_picker.dart';
 import '../services/background_service.dart';
-import '../screens/collection_detail_screen.dart';  // Make sure this points to the right file
+import '../screens/custom_collection_detail_screen.dart'; // Fixed import path
 import './custom_collection_detail_screen.dart'; // Add this import
 
 class CustomCollectionsScreen extends StatelessWidget {
@@ -209,117 +209,7 @@ class CustomCollectionsScreen extends StatelessWidget {
             itemCount: collections.length,
             itemBuilder: (context, index) {
               final collection = collections[index];
-              return Card(
-                margin: const EdgeInsets.only(bottom: 16),
-                child: InkWell(
-                  onTap: () => _navigateToCollection(context, collection),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    collection.name,
-                                    style: const TextStyle(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                  if (collection.description.isNotEmpty) ...[
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      collection.description,
-                                      style: TextStyle(
-                                        color: Colors.grey[600],
-                                        fontSize: 14,
-                                      ),
-                                    ),
-                                  ],
-                                ],
-                              ),
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.more_vert),
-                              onPressed: () => _showCollectionMenu(
-                                context, 
-                                collection, 
-                                service,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      StreamBuilder<List<TcgCard>>(
-                        stream: _getCollectionPreviewCards(collection.cardIds),
-                        builder: (context, snapshot) {
-                          if (!snapshot.hasData) {
-                            return const SizedBox(height: 100);
-                          }
-                          
-                          final previewCards = snapshot.data!;
-                          if (previewCards.isEmpty) {
-                            return const SizedBox(height: 100);
-                          }
-
-                          return SizedBox(
-                            height: 100,
-                            child: ListView.builder(
-                              scrollDirection: Axis.horizontal,
-                              padding: const EdgeInsets.symmetric(horizontal: 16),
-                              itemCount: previewCards.length,
-                              itemBuilder: (context, index) {
-                                return Padding(
-                                  padding: const EdgeInsets.only(right: 8),
-                                  child: AspectRatio(
-                                    aspectRatio: 0.7,
-                                    child: ClipRRect(
-                                      borderRadius: BorderRadius.circular(8),
-                                      child: Image.network(
-                                        previewCards[index].imageUrl,
-                                        fit: BoxFit.cover,
-                                      ),
-                                    ),
-                                  ),
-                                );
-                              },
-                            ),
-                          );
-                        },
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              '${collection.cardIds.length} cards',
-                              style: TextStyle(
-                                color: Colors.grey[600],
-                                fontSize: 14,
-                              ),
-                            ),
-                            if (collection.totalValue != null)
-                              Text(
-                                '€${collection.totalValue!.toStringAsFixed(2)}',
-                                style: TextStyle(
-                                  color: Colors.green[700],
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16,
-                                ),
-                              ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              );
+              return _buildCollectionCard(context, collection); // Pass context here
             },
           );
         },
@@ -512,6 +402,106 @@ class CustomCollectionsScreen extends StatelessWidget {
         );
       }
     }
+  }
+
+  Widget _buildCollectionCard(BuildContext context, CustomCollection collection) { // Add context parameter
+    return Card(
+      margin: const EdgeInsets.only(bottom: 16),
+      child: InkWell(
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => CustomCollectionDetailScreen(collection: collection),
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Add card preview
+            StreamBuilder<List<TcgCard>>(
+              stream: CollectionService().getCollectionCardsStream(collection.id),
+              builder: (context, snapshot) {
+                final cards = snapshot.data ?? [];
+                if (cards.isEmpty) {
+                  return const SizedBox(height: 100);
+                }
+
+                return SizedBox(
+                  height: 100,
+                  child: ListView.builder(
+                    scrollDirection: Axis.horizontal,
+                    padding: const EdgeInsets.all(8),
+                    itemCount: cards.length.clamp(0, 5), // Show up to 5 cards
+                    itemBuilder: (context, index) {
+                      return Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: Image.network(
+                            cards[index].imageUrl,
+                            width: 70,
+                            height: 100,
+                            fit: BoxFit.cover,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                );
+              },
+            ),
+            // Collection info
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    collection.name,
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  if (collection.description.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      collection.description,
+                      style: TextStyle(
+                        color: Colors.grey[600],
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        '${collection.cardIds.length} cards',
+                        style: TextStyle(
+                          color: Colors.grey[600],
+                          fontSize: 14,
+                        ),
+                      ),
+                      if (collection.totalValue != null)
+                        Text(
+                          '€${collection.totalValue!.toStringAsFixed(2)}',
+                          style: TextStyle(
+                            color: Colors.green[700],
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 

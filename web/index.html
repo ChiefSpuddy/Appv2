@@ -56,38 +56,21 @@
   <script src="https://accounts.google.com/gsi/client" async defer></script>
 
   <script src="flutter.js" defer></script>
+
+  <script>
+    window.flutterWebRenderer = "html";
+  </script>
 </head>
 <body>
   <div id="flutter_target"></div>
   <script>
-    window.addEventListener('load', function() {
-      var loading = document.querySelector('#loading');
-      _flutter = {
-        loader: {
-          loadEntrypoint: async function(options) {
-            var entrypoint = await options.getEntrypoint();
-            return entrypoint.initializeEngine().then(function(appRunner) {
-              return appRunner.runApp();
-            });
-          }
-        }
-      };
-      var scriptLoaded = false;
-      var engineInitialized = false;
-      try {
-        if ("serviceWorker" in navigator) {
-          window.addEventListener("load", function () {
-            navigator.serviceWorker.register("/flutter_service_worker.js");
-          });
-        }
-        let scriptTag = document.createElement('script');
-        scriptTag.src = 'main.dart.js';
-        scriptTag.type = 'application/javascript';
-        document.body.append(scriptTag);
-      } catch (e) {
-        console.error('Error initializing Flutter app:', e);
+    window.addEventListener('flutter-first-frame', function() {
+      var loadingIndicator = document.getElementById('loading');
+      if (loadingIndicator) {
+        loadingIndicator.remove();
       }
     });
   </script>
+  <script src="main.dart.js" type="application/javascript"></script>
 </body>
 </html>

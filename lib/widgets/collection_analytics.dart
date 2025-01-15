@@ -1,9 +1,33 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../services/collection_service.dart';
-import 'dart:math' show min, max;
+import 'dart:math' show min, max, log, pow;
 
-class CollectionAnalytics extends StatelessWidget {
+class CollectionAnalytics extends StatefulWidget {  // Change to StatefulWidget
+  const CollectionAnalytics({super.key});
+
+  @override
+  State<CollectionAnalytics> createState() => _CollectionAnalyticsState();
+}
+
+class _CollectionAnalyticsState extends State<CollectionAnalytics> {
+  static const Map<String, int> periodMonths = {
+    '1M': 1,
+    '3M': 3,
+    '6M': 6,
+    '1Y': 12,
+  };
+  
+  // Add these new fields
+  late Future<List<Map<String, dynamic>>> _priceHistoryFuture;
+  final ValueNotifier<int> _selectedPeriod = ValueNotifier(3);
+
+  @override
+  void initState() {
+    super.initState();
+    _priceHistoryFuture = CollectionService().getPriceHistory(months: _selectedPeriod.value);
+  }
+
   static final List<MaterialColor> _chartColors = [
     Colors.blue,
     Colors.red,
@@ -23,8 +47,6 @@ class CollectionAnalytics extends StatelessWidget {
     const Color(0xFF8D6E63), // Brown
     const Color(0xFF78909C), // Blue Grey
   ];
-
-  const CollectionAnalytics({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -219,9 +241,10 @@ class CollectionAnalytics extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: SizedBox(
             height: 80,
-            child: Center( // Center the ListView
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -569,61 +592,69 @@ class CollectionAnalytics extends StatelessWidget {
     dynamic total,
     bool showValue,
   ) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: sets.asMap().entries.map((entry) {
-        final index = entry.key;
-        final set = entry.value;
-        final value = set.value;
-        final percentage = ((value / total) * 100).toStringAsFixed(1);
-        
-        return Padding(
-          padding: const EdgeInsets.symmetric(vertical: 4),
-          child: InkWell(
-            onTap: () => _showSetDetailsTyped(context, set, showValue),
-            borderRadius: BorderRadius.circular(4),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 12,
-                  height: 12,
-                  decoration: BoxDecoration(
-                    color: _modernChartColors[index % _modernChartColors.length],
-                    borderRadius: BorderRadius.circular(3),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+    return SingleChildScrollView(  // Add scrolling capability
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: sets.asMap().entries.map((entry) {
+          final index = entry.key;
+          final set = entry.value;
+          final value = set.value;
+          final percentage = ((value / total) * 100).toStringAsFixed(1);
+          
+          return Padding(
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            child: InkWell(
+              onTap: () => _showSetDetailsTyped(context, set, showValue),
+              borderRadius: BorderRadius.circular(4),
+              child: LayoutBuilder(  // Add LayoutBuilder
+                builder: (context, constraints) {
+                  return Row(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text(
-                        set.key,
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
+                      Container(
+                        width: 12,
+                        height: 12,
+                        decoration: BoxDecoration(
+                          color: _modernChartColors[index % _modernChartColors.length],
+                          borderRadius: BorderRadius.circular(3),
                         ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
                       ),
-                      Text(
-                        showValue
-                            ? '€${value.toStringAsFixed(2)} · $percentage%'
-                            : '${value} cards · $percentage%',
-                        style: TextStyle(
-                          fontSize: 10,
-                          color: Theme.of(context).textTheme.bodySmall?.color,
+                      const SizedBox(width: 8),
+                      Flexible(  // Replace Expanded with Flexible
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              set.key,
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            Text(
+                              showValue
+                                  ? '€${value.toStringAsFixed(2)} · $percentage%'
+                                  : '${value} cards · $percentage%',
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: Theme.of(context).textTheme.bodySmall?.color,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
                         ),
                       ),
                     ],
-                  ),
-                ),
-              ],
+                  );
+                },
+              ),
             ),
-          ),
-        );
-      }).toList(),
+          );
+        }).toList(),
+      ),
     );
   }
 
@@ -711,224 +742,368 @@ class CollectionAnalytics extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final width = constraints.maxWidth;
-        final isWideScreen = width > 600;
-        final aspectRatio = isWideScreen 
-            ? width / 300  // Wider screens get a more panoramic view
-            : width / 400; // Narrower screens get a taller chart
+        final aspectRatio = width > 600 ? 2.5 : 1.8;  // Adjusted aspect ratio
         final isDark = Theme.of(context).brightness == Brightness.dark;
 
-        return FutureBuilder<List<Map<String, dynamic>>>(
-          future: service.getPriceHistory(),
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const SizedBox(
-                height: 300,
-                child: Center(child: CircularProgressIndicator()),
-              );
-            }
-
-            if (!snapshot.hasData || snapshot.data!.isEmpty) {
-              return Card(
-                elevation: 2,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: const Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.timeline_outlined, size: 48, color: Colors.grey),
-                        SizedBox(height: 16),
-                        Text(
-                          'No price history available yet.\nAdd or remove cards to see the value change over time.',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(color: Colors.grey),
-                        ),
-                      ],
-                    ),
-                  ),
+        return Card(
+          elevation: 2,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    _buildSectionHeader('Price History', color: _modernChartColors[1]),
+                    const Spacer(),
+                    _buildPeriodSelector(),
+                  ],
                 ),
-              );
-            }
+              ),
+              ValueListenableBuilder<int>(
+                valueListenable: _selectedPeriod,
+                builder: (context, period, _) {
+                  return FutureBuilder<List<Map<String, dynamic>>>(
+                    key: ValueKey('price_history_$period'),
+                    future: service.getPriceHistory(months: period),
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return const SizedBox(
+                          height: 300,
+                          child: Center(child: CircularProgressIndicator()),
+                        );
+                      }
 
-            final data = snapshot.data!;
-            final minY = data.map((e) => e['value'] as double).reduce(min);
-            final maxY = data.map((e) => e['value'] as double).reduce(max);
-            final spots = data.asMap().entries.map((entry) {
-              return FlSpot(entry.key.toDouble(), entry.value['value']);
-            }).toList();
-
-            return Card(
-              elevation: 2,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildSectionHeader('Price History', color: Colors.orange),
-                  Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const SizedBox(height: 16),
-                        AspectRatio(
-                          aspectRatio: aspectRatio,
-                          child: LineChart(
-                            LineChartData(
-                              gridData: FlGridData(
-                                show: true,
-                                drawVerticalLine: false,
-                                horizontalInterval: max(1, maxY / 5), // Adjust grid lines
-                                getDrawingHorizontalLine: (value) {
-                                  return FlLine(
-                                    color: Colors.grey[300],
-                                    strokeWidth: 1,
-                                    dashArray: [5, 5],
-                                  );
-                                },
-                              ),
-                              titlesData: FlTitlesData(
-                                rightTitles: const AxisTitles(
-                                  sideTitles: SideTitles(showTitles: false),
-                                ),
-                                topTitles: const AxisTitles(
-                                  sideTitles: SideTitles(showTitles: false),
-                                ),
-                                bottomTitles: AxisTitles(
-                                  sideTitles: SideTitles(
-                                    showTitles: true,
-                                    reservedSize: 32, // Increased reserved size
-                                    interval: max(1, (spots.length / 5).floor()).toDouble(), // Reduced number of labels
-                                    getTitlesWidget: (value, meta) {
-                                      if (value.toInt() >= data.length) return const Text('');
-                                      final date = data[value.toInt()]['timestamp'] as DateTime;
-                                      return Padding(
-                                        padding: const EdgeInsets.only(top: 8),
-                                        child: Text(
-                                          '${date.day}/${date.month}',
-                                          style: const TextStyle(fontSize: 10),
-                                        ),
-                                      );
-                                    },
+                      if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                        return Card(
+                          elevation: 2,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: const Center(
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.timeline_outlined, size: 48, color: Colors.grey),
+                                  SizedBox(height: 16),
+                                  Text(
+                                    'No price history available yet.\nAdd or remove cards to see the value change over time.',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(color: Colors.grey),
                                   ),
-                                ),
-                                leftTitles: AxisTitles(
-                                  sideTitles: SideTitles(
-                                    showTitles: true,
-                                    reservedSize: 65, // Increased for wider values
-                                    interval: maxY > 1000 ? maxY / 5 : max(1, maxY / 5),
-                                    getTitlesWidget: (value, meta) {
-                                      return Padding(
-                                        padding: const EdgeInsets.only(right: 8),
-                                        child: Text(
-                                          value >= 1000
-                                              ? '€${(value/1000).toStringAsFixed(1)}k'
-                                              : '€${value.toStringAsFixed(0)}',
-                                          style: TextStyle(
-                                            fontSize: 11,
-                                            color: Colors.grey[600],
-                                          ),
-                                        ),
-                                      );
-                                    },
-                                  ),
-                                ),
-                              ),
-                              // Add padding to prevent overlap
-                              minY: minY * 0.95,
-                              maxY: maxY * 1.05,
-                              lineBarsData: [
-                                LineChartBarData(
-                                  spots: spots,
-                                  isCurved: true,
-                                  gradient: LinearGradient(
-                                    colors: [Colors.blue[400]!, Colors.blue[800]!],
-                                  ),
-                                  barWidth: 3,
-                                  isStrokeCapRound: true,
-                                  dotData: FlDotData(
-                                    show: true,
-                                    getDotPainter: (spot, percent, barData, index) {
-                                      return FlDotCirclePainter(
-                                        radius: 4,
-                                        color: Colors.white,
-                                        strokeWidth: 2,
-                                        strokeColor: Colors.blue[800]!,
-                                      );
-                                    },
-                                  ),
-                                  belowBarData: BarAreaData(
-                                    show: true,
-                                    gradient: LinearGradient(
-                                      colors: [
-                                        Colors.blue[400]!.withOpacity(0.2),
-                                        Colors.blue[800]!.withOpacity(0.0),
-                                      ],
-                                      begin: Alignment.topCenter,
-                                      end: Alignment.bottomCenter,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                              extraLinesData: ExtraLinesData(
-                                horizontalLines: [
-                                  HorizontalLine(
-                                    y: maxY,
-                                    color: Colors.green.withOpacity(0.5),
-                                    strokeWidth: 1,
-                                    dashArray: [5, 5],
-                                    label: HorizontalLineLabel(
-                                      show: true,
-                                      alignment: Alignment.topRight,
-                                      padding: const EdgeInsets.only(right: 8, bottom: 4),
-                                      style: TextStyle(
-                                        color: isDark ? Colors.green[300] : Colors.green,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                      labelResolver: (line) => '€${maxY.toStringAsFixed(2)}',
-                                    ),
-                                  ),
-                                  // Remove the minimum value line to keep the chart cleaner
                                 ],
-                              ),
-                              lineTouchData: LineTouchData(
-                                enabled: true,
-                                touchTooltipData: LineTouchTooltipData(
-                                  tooltipBgColor: Colors.blueGrey.withOpacity(0.8),
-                                  tooltipRoundedRadius: 8,
-                                  getTooltipItems: (List<LineBarSpot> touchedSpots) {
-                                    return touchedSpots.map((LineBarSpot touchedSpot) {
-                                      final date = data[touchedSpot.x.toInt()]['timestamp'] as DateTime;
-                                      return LineTooltipItem(
-                                        '€${touchedSpot.y.toStringAsFixed(2)}\n',
-                                        const TextStyle(
-                                          color: Colors.white,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                        children: [
-                                          TextSpan(
-                                            text: '${date.day}/${date.month}/${date.year}',
-                                            style: TextStyle(
-                                              color: Colors.white.withOpacity(0.8),
-                                              fontSize: 12,
-                                            ),
-                                          ),
-                                        ],
-                                      );
-                                    }).toList();
-                                  },
-                                ),
                               ),
                             ),
                           ),
+                        );
+                      }
+
+                      final data = snapshot.data!;
+                      final minY = data.map((e) => e['value'] as double).reduce(min);
+                      final maxY = data.map((e) => e['value'] as double).reduce(max);
+                      final spots = data.asMap().entries.map((entry) {
+                        return FlSpot(entry.key.toDouble(), entry.value['value']);
+                      }).toList();
+
+                      // Calculate growth more accurately
+                      final firstValue = data.first['value'] as double;
+                      final lastValue = data.last['value'] as double;
+                      final growthPercentage = firstValue > 0 
+                          ? ((lastValue - firstValue) / firstValue * 100)
+                          : 0.0;
+
+                      return Card(
+                        elevation: 2,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            'Total Growth',
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              color: isDark ? Colors.grey[400] : Colors.grey[700],
+                                            ),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Row(
+                                            children: [
+                                              Icon(
+                                                growthPercentage >= 0 
+                                                    ? Icons.arrow_upward 
+                                                    : Icons.arrow_downward,
+                                                size: 16,
+                                                color: growthPercentage >= 0 
+                                                    ? Colors.green[400] 
+                                                    : Colors.red[400],
+                                              ),
+                                              const SizedBox(width: 4),
+                                              Text(
+                                                '${growthPercentage.abs().toStringAsFixed(1)}%',
+                                                style: TextStyle(
+                                                  fontSize: 14,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: growthPercentage >= 0 
+                                                      ? Colors.green[400] 
+                                                      : Colors.red[400],
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ],
+                                      ),
+                                      Column(
+                                        crossAxisAlignment: CrossAxisAlignment.end,
+                                        children: [
+                                          Text(
+                                            'Value Change',
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              color: isDark ? Colors.grey[400] : Colors.grey[700],
+                                            ),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            '€${(lastValue - firstValue).toStringAsFixed(2)}',
+                                            style: TextStyle(
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.bold,
+                                              color: growthPercentage >= 0 
+                                                  ? Colors.green[400] 
+                                                  : Colors.red[400],
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: AspectRatio(
+                                aspectRatio: aspectRatio,
+                                child: LineChart(
+                                  LineChartData(
+                                    gridData: FlGridData(
+                                      show: true,
+                                      drawVerticalLine: false,
+                                      horizontalInterval: max(1, maxY / 4),
+                                      getDrawingHorizontalLine: (value) => FlLine(
+                                        color: isDark ? Colors.grey[800]! : Colors.grey[300]!,
+                                        strokeWidth: 0.8,
+                                        dashArray: [5, 5],
+                                      ),
+                                    ),
+                                    titlesData: FlTitlesData(
+                                      rightTitles: const AxisTitles(
+                                        sideTitles: SideTitles(showTitles: false),
+                                      ),
+                                      topTitles: const AxisTitles(
+                                        sideTitles: SideTitles(showTitles: false),
+                                      ),
+                                      bottomTitles: AxisTitles(
+                                        sideTitles: SideTitles(
+                                          showTitles: true,
+                                          interval: max(1, (spots.length / 6).floor()).toDouble(),
+                                          getTitlesWidget: (value, meta) {
+                                            if (value.toInt() >= data.length) return const Text('');
+                                            final date = data[value.toInt()]['timestamp'] as DateTime;
+                                            return Padding(
+                                              padding: const EdgeInsets.only(top: 5),
+                                              child: Text(
+                                                '${date.day}/${date.month}',
+                                                style: TextStyle(
+                                                  fontSize: 10,
+                                                  color: isDark ? Colors.grey[400] : Colors.grey[600],
+                                                  fontWeight: FontWeight.w500,
+                                                ),
+                                              ),
+                                            );
+                                          },
+                                        ),
+                                      ),
+                                      leftTitles: AxisTitles(
+                                        sideTitles: SideTitles(
+                                          showTitles: true,
+                                          reservedSize: 46,
+                                          interval: ((maxY - minY) / 6).roundToDouble(), // Add dynamic interval
+                                          getTitlesWidget: (value, meta) {
+                                            // Skip labels that are too close to max or min
+                                            if (value > maxY || value < minY) {
+                                              return const SizedBox.shrink();
+                                            }
+                                            return Padding(
+                                              padding: const EdgeInsets.only(right: 8),
+                                              child: Text(
+                                                value >= 1000
+                                                    ? '€${(value/1000).toStringAsFixed(1)}k'
+                                                    : '€${value.toStringAsFixed(0)}',
+                                                style: TextStyle(
+                                                  fontSize: 10,
+                                                  color: isDark ? Colors.grey[400] : Colors.grey[600],
+                                                  fontWeight: FontWeight.w500,
+                                                ),
+                                              ),
+                                            );
+                                          },
+                                        ),
+                                      ),
+                                    ),
+                                    borderData: FlBorderData(show: false),
+                                    minY: minY * 0.95,
+                                    maxY: maxY * 1.05,
+                                    lineBarsData: [
+                                      LineChartBarData(
+                                        spots: spots,
+                                        isCurved: true,
+                                        curveSmoothness: 0.35,
+                                        gradient: LinearGradient(
+                                          colors: [
+                                            _modernChartColors[1],
+                                            _modernChartColors[0],
+                                          ],
+                                        ),
+                                        barWidth: 2.5,
+                                        isStrokeCapRound: true,
+                                        dotData: FlDotData(
+                                          show: true,
+                                          getDotPainter: (spot, percent, barData, index) => FlDotCirclePainter(
+                                            radius: 2.5,
+                                            color: _modernChartColors[0],
+                                            strokeWidth: 1,
+                                            strokeColor: Colors.white,
+                                          ),
+                                        ),
+                                        belowBarData: BarAreaData(
+                                          show: true,
+                                          gradient: LinearGradient(
+                                            begin: Alignment.topCenter,
+                                            end: Alignment.bottomCenter,
+                                            colors: [
+                                              _modernChartColors[0].withOpacity(0.2),
+                                              _modernChartColors[0].withOpacity(0.0),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                    lineTouchData: LineTouchData(
+                                      enabled: true,
+                                      touchTooltipData: LineTouchTooltipData(
+                                        tooltipBgColor: isDark ? Colors.grey[800]! : Colors.grey[100]!,
+                                        tooltipRoundedRadius: 8,
+                                        tooltipPadding: const EdgeInsets.all(8),
+                                        tooltipBorder: BorderSide(
+                                          color: isDark ? Colors.white10 : Colors.black12,
+                                        ),
+                                        getTooltipItems: (touchedSpots) {
+                                          return touchedSpots.map((spot) {
+                                            final date = data[spot.x.toInt()]['timestamp'] as DateTime;
+                                            return LineTooltipItem(
+                                              '€${spot.y.toStringAsFixed(2)}\n',
+                                              TextStyle(
+                                                color: isDark ? Colors.white : Colors.black87,
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 12,
+                                              ),
+                                              children: [
+                                                TextSpan(
+                                                  text: '${date.day}/${date.month}/${date.year}',
+                                                  style: TextStyle(
+                                                    color: isDark ? Colors.grey[400] : Colors.grey[600],
+                                                    fontSize: 11,
+                                                    fontWeight: FontWeight.normal,
+                                                  ),
+                                                ),
+                                              ],
+                                            );
+                                          }).toList();
+                                        },
+                                      ),
+                                      getTouchedSpotIndicator: (barData, spotIndexes) {
+                                        return spotIndexes.map((index) {
+                                          return TouchedSpotIndicatorData(
+                                            FlLine(
+                                              color: isDark ? Colors.white24 : Colors.black12,
+                                              strokeWidth: 1,
+                                              dashArray: [3, 3],
+                                            ),
+                                            FlDotData(
+                                              show: true,
+                                              getDotPainter: (spot, percent, barData, index) => FlDotCirclePainter(
+                                                radius: 4,
+                                                color: _modernChartColors[0],
+                                                strokeWidth: 2,
+                                                strokeColor: Colors.white,
+                                              ),
+                                            ),
+                                          );
+                                        }).toList();
+                                      },
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
-                  ),
-                ],
+                      );
+                    },
+                  );
+                },
               ),
-            );
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildPeriodSelector() {
+    return ValueListenableBuilder<int>(
+      valueListenable: _selectedPeriod,
+      builder: (context, selectedPeriod, _) {
+        return SegmentedButton<int>(
+          segments: periodMonths.entries.map((e) => 
+            ButtonSegment<int>(
+              value: e.value,
+              label: Text(e.key),
+            ),
+          ).toList(),
+          selected: {selectedPeriod},
+          onSelectionChanged: (Set<int> selection) {
+            _selectedPeriod.value = selection.first;
           },
+          style: ButtonStyle(
+            visualDensity: VisualDensity.compact,
+            // Add these style properties for better appearance
+            backgroundColor: MaterialStateProperty.resolveWith<Color?>((states) {
+              if (states.contains(MaterialState.selected)) {
+                return _modernChartColors[1];
+              }
+              return null;
+            }),
+            foregroundColor: MaterialStateProperty.resolveWith<Color?>((states) {
+              if (states.contains(MaterialState.selected)) {
+                return Colors.white;
+              }
+              return null;
+            }),
+          ),
         );
       },
     );
@@ -989,19 +1164,6 @@ class CollectionAnalytics extends StatelessWidget {
                 ),
               ],
             ),
-            if (monthlyStats['growthPercentage'] != 0)
-              Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: Text(
-                  'Growth: ${monthlyStats['growthPercentage'].toStringAsFixed(1)}%',
-                  style: TextStyle(
-                    color: monthlyStats['growthPercentage'] >= 0 
-                        ? Colors.green[700] 
-                        : Colors.red[700],
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
           ],
         ),
       ),
@@ -1075,6 +1237,9 @@ class CollectionAnalytics extends StatelessWidget {
   }
 
   Widget _buildBiggestMovers(CollectionService service) {
+    const minPriceThreshold = 1.0; // Minimum price threshold in EUR
+    const minPriceChangeThreshold = 1.0; // Minimum absolute price change to consider
+    
     return FutureBuilder<List<Map<String, dynamic>>>(
       future: service.getBiggestMovers(),
       builder: (context, snapshot) {
@@ -1087,25 +1252,35 @@ class CollectionAnalytics extends StatelessWidget {
           );
         }
 
-        if (!snapshot.hasData || snapshot.data!.isEmpty) {
-          return Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  _buildSectionHeader('Biggest Movers (7 Days)', color: Colors.pink),
-                  const SizedBox(height: 16),
-                  Icon(Icons.show_chart, size: 48, color: Colors.grey[400]),
-                  const SizedBox(height: 8),
-                  Text(
-                    'No significant price changes in the last 7 days',
-                    style: TextStyle(color: Colors.grey[600]),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
-              ),
-            ),
+        if (!snapshot.hasData) {
+          return _buildEmptyMoversCard('No price movement data available');
+        }
+
+        // Filter and process the movers data
+        final significantMovers = snapshot.data!
+            .where((mover) {
+              final currentPrice = mover['currentPrice'] as double;
+              final oldPrice = mover['oldPrice'] as double;
+              final priceChange = (currentPrice - oldPrice).abs();
+              
+              // Only include cards that:
+              // 1. Are worth more than minPriceThreshold
+              // 2. Have changed by at least minPriceChangeThreshold
+              return currentPrice >= minPriceThreshold && 
+                     priceChange >= minPriceChangeThreshold;
+            })
+            .toList()
+          ..sort((a, b) {
+              // Sort by absolute percentage change
+              final aChange = (a['percentageChange'] as double).abs();
+              final bChange = (b['percentageChange'] as double).abs();
+              return bChange.compareTo(aChange);
+            });
+
+        if (significantMovers.isEmpty) {
+          return _buildEmptyMoversCard(
+            'No significant price movements in the last 7 days\n'
+            '(minimum €$minPriceThreshold value, €$minPriceChangeThreshold change)'
           );
         }
 
@@ -1120,20 +1295,43 @@ class CollectionAnalytics extends StatelessWidget {
               children: [
                 _buildSectionHeader('Biggest Movers (7 Days)', color: Colors.pink),
                 const SizedBox(height: 16),
-                ...snapshot.data!.map((mover) {
+                ...significantMovers.take(5).map((mover) {  // Only show top 5 movers
                   final isPositive = mover['priceChange'] >= 0;
+                  final priceChange = mover['priceChange'] as double;
+                  final percentageChange = mover['percentageChange'] as double;
+                  
                   return Column(
                     children: [
                       ListTile(
                         contentPadding: EdgeInsets.zero,
-                        leading: ClipRRect(
-                          borderRadius: BorderRadius.circular(4),
-                          child: Image.network(
-                            mover['imageUrl'],
-                            width: 40,
-                            height: 56,
-                            fit: BoxFit.contain,
-                          ),
+                        leading: Stack(
+                          children: [
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(4),
+                              child: Image.network(
+                                mover['imageUrl'],
+                                width: 40,
+                                height: 56,
+                                fit: BoxFit.contain,
+                              ),
+                            ),
+                            Positioned(
+                              top: 0,
+                              right: 0,
+                              child: Container(
+                                padding: const EdgeInsets.all(4),
+                                decoration: BoxDecoration(
+                                  color: isPositive ? Colors.green : Colors.red,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Icon(
+                                  isPositive ? Icons.arrow_upward : Icons.arrow_downward,
+                                  color: Colors.white,
+                                  size: 12,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                         title: Text(
                           mover['name'],
@@ -1141,42 +1339,190 @@ class CollectionAnalytics extends StatelessWidget {
                             fontSize: 14,
                             fontWeight: FontWeight.bold,
                           ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                        subtitle: Text(
-                          '€${mover['oldPrice'].toStringAsFixed(2)} → €${mover['currentPrice'].toStringAsFixed(2)}',
-                          style: const TextStyle(fontSize: 12),
-                        ),
-                        trailing: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          crossAxisAlignment: CrossAxisAlignment.end,
+                        subtitle: Row(
                           children: [
                             Text(
-                              '€${mover['priceChange'].toStringAsFixed(2)}',
+                              '€${mover['oldPrice'].toStringAsFixed(2)}',
                               style: TextStyle(
-                                color: isPositive ? Colors.green : Colors.red,
-                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
+                                decoration: TextDecoration.lineThrough,
+                                color: Colors.grey[600],
                               ),
                             ),
+                            Icon(
+                              Icons.arrow_forward,
+                              size: 12,
+                              color: Colors.grey[600],
+                            ),
                             Text(
-                              '${isPositive ? '+' : ''}${mover['percentageChange'].toStringAsFixed(1)}%',
-                              style: TextStyle(
-                                color: isPositive ? Colors.green[700] : Colors.red[700],
+                              '€${mover['currentPrice'].toStringAsFixed(2)}',
+                              style: const TextStyle(
                                 fontSize: 12,
+                                fontWeight: FontWeight.bold,
                               ),
                             ),
                           ],
                         ),
+                        trailing: SizedBox(
+                          width: 90,
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Text(
+                                '€${priceChange.abs().toStringAsFixed(2)}',
+                                style: TextStyle(
+                                  color: isPositive ? Colors.green : Colors.red,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              Text(
+                                '${isPositive ? '+' : ''}${percentageChange.toStringAsFixed(1)}%',
+                                style: TextStyle(
+                                  color: isPositive ? Colors.green[700] : Colors.red[700],
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
-                      if (mover != snapshot.data!.last)
+                      if (mover != significantMovers.take(5).last)
                         const Divider(height: 1),
                     ],
                   );
                 }).toList(),
+                if (significantMovers.length > 5) ...[
+                  const Divider(height: 16),
+                  Center(
+                    child: TextButton(
+                      onPressed: () => _showAllMovers(context, significantMovers),
+                      child: Text('View All ${significantMovers.length} Movers'),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
         );
       },
+    );
+  }
+
+  Widget _buildEmptyMoversCard(String message) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _buildSectionHeader('Biggest Movers (7 Days)', color: Colors.pink),
+            const SizedBox(height: 16),
+            Icon(Icons.show_chart, size: 48, color: Colors.grey[400]),
+            const SizedBox(height: 8),
+            Text(
+              message,
+              style: TextStyle(color: Colors.grey[600]),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showAllMovers(BuildContext context, List<Map<String, dynamic>> allMovers) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) => DraggableScrollableSheet(
+        initialChildSize: 0.7,
+        minChildSize: 0.5,
+        maxChildSize: 0.95,
+        expand: false,
+        builder: (context, scrollController) => Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  const Expanded(
+                    child: Text(
+                      'All Price Movements',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  Text(
+                    'Last 7 Days',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: ListView.builder(
+                controller: scrollController,
+                itemCount: allMovers.length,
+                itemBuilder: (context, index) {
+                  final mover = allMovers[index];
+                  final isPositive = mover['priceChange'] >= 0;
+                  return ListTile(
+                    leading: ClipRRect(
+                      borderRadius: BorderRadius.circular(4),
+                      child: Image.network(
+                        mover['imageUrl'],
+                        width: 30,
+                        height: 42,
+                        fit: BoxFit.contain,
+                      ),
+                    ),
+                    title: Text(
+                      mover['name'],
+                      style: const TextStyle(fontSize: 14),
+                    ),
+                    subtitle: Text(
+                      '€${mover['oldPrice'].toStringAsFixed(2)} → €${mover['currentPrice'].toStringAsFixed(2)}',
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                    trailing: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(
+                          '€${mover['priceChange'].abs().toStringAsFixed(2)}',
+                          style: TextStyle(
+                            color: isPositive ? Colors.green : Colors.red,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        Text(
+                          '${isPositive ? '+' : ''}${mover['percentageChange'].toStringAsFixed(1)}%',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: isPositive ? Colors.green[700] : Colors.red[700],
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 

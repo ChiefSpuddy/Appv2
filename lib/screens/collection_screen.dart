@@ -28,24 +28,6 @@ class _CollectionScreenState extends State<CollectionScreen> {
     if (_selectedIndex == index) return; // Don't reload if already selected
     
     setState(() => _selectedIndex = index);
-    
-    if (index == 2) {
-      Navigator.push(
-        context,
-        PageRouteBuilder(
-          pageBuilder: (context, animation, secondaryAnimation) => const CustomCollectionsScreen(),
-          transitionsBuilder: (context, animation, secondaryAnimation, child) {
-            return SlideTransition(
-              position: Tween<Offset>(
-                begin: const Offset(1.0, 0.0),
-                end: Offset.zero,
-              ).animate(animation),
-              child: child,
-            );
-          },
-        ),
-      ).then((_) => _switchView(0));
-    }
   }
 
   Widget _buildCustomCollectionsMenuEntry(List<CustomCollection> collections) {
@@ -166,15 +148,18 @@ class _CollectionScreenState extends State<CollectionScreen> {
                 selected: {_selectedIndex},
                 onSelectionChanged: (Set<int> newSelection) {
                   final index = newSelection.first;
-                  _switchView(index);
                   if (index == 2) {
+                    // Instead of pushing and then switching back, just navigate
                     Navigator.push(
                       context,
                       MaterialPageRoute(
                         builder: (context) => const CustomCollectionsScreen(),
                       ),
-                    ).then((_) => _switchView(0)); // Return to collection view
+                    );
+                    // Don't update the selected index
+                    return;
                   }
+                  _switchView(index);
                 },
                 style: ButtonStyle(
                   backgroundColor: MaterialStateProperty.resolveWith<Color?>(

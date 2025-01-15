@@ -255,14 +255,11 @@ class _CustomCollectionDetailScreenState extends State<CustomCollectionDetailScr
   }
 
   Future<void> _removeCard(BuildContext context, CollectionService service, TcgCard card) async {
-    final userId = FirebaseAuth.instance.currentUser?.uid;
-    if (userId == null) return;
-
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Remove Card'),
-        content: const Text('Are you sure you want to remove this card from the collection?'),
+        content: Text('Are you sure you want to remove ${card.name} from this collection?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -270,14 +267,43 @@ class _CustomCollectionDetailScreenState extends State<CustomCollectionDetailScr
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(
+              foregroundColor: Colors.red,
+            ),
             child: const Text('Remove'),
           ),
         ],
       ),
     );
 
-    if (confirmed == true) {
-      await service.removeCardFromCollection(_collection.id, card.id, userId);
+    if (confirmed == true && context.mounted) {
+      try {
+        print('Removing card ${card.id} from collection ${_collection.id}'); // Debug log
+        await service.removeCardsFromCollection(_collection.id, [card.id]);
+        
+        // Update local state
+        setState(() {
+          _collection = _collection.copyWith(
+            cardIds: List.from(_collection.cardIds)..remove(card.id),
+          );
+        });
+        
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Removed ${card.name} from collection')),
+          );
+        }
+      } catch (e) {
+        print('Error removing card: $e');
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Failed to remove card from collection'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
     }
   }
 }

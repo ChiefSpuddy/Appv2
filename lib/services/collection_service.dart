@@ -231,7 +231,7 @@ class CollectionService {
     return double.parse(total.toStringAsFixed(2));
   }
 
-  Future<List<Map<String, dynamic>>> getPriceHistory({int months = 1}) async {
+  Future<List<Map<String, dynamic>>> getPriceHistory({int months = 3}) async {
     if (userId.isEmpty) {
       throw Exception('User not authenticated');
     }
@@ -248,22 +248,43 @@ class CollectionService {
 
       if (snapshot.docs.isEmpty) {
         final currentValue = await _calculateTotalValue();
-        await _updatePriceHistory();
-        return [
-          {
-            'value': currentValue,
-            'timestamp': DateTime.now(),
-          }
-        ];
+        if (currentValue > 0) {
+          await _updatePriceHistory();
+          return [
+            {
+              'value': currentValue,
+              'timestamp': DateTime.now(),
+            }
+          ];
+        }
+        return [];
       }
 
-      return snapshot.docs.map((doc) {
+      // Add a starting point if we don't have one at the cutoff
+      List<Map<String, dynamic>> history = [];
+      if (snapshot.docs.isNotEmpty) {
+        final firstDoc = snapshot.docs.first;
+        final firstTimestamp = (firstDoc.data()['timestamp'] as Timestamp).toDate();
+        
+        // If first record is after cutoff, add a starting point
+        if (firstTimestamp.isAfter(cutoff)) {
+          history.add({
+            'value': firstDoc.data()['totalValue'] as double,
+            'timestamp': cutoff,
+          });
+        }
+      }
+
+      // Add all records
+      history.addAll(snapshot.docs.map((doc) {
         final data = doc.data();
         return {
-          'value': data['totalValue'] as double,
+          'value': (data['totalValue'] as num).toDouble(),
           'timestamp': (data['timestamp'] as Timestamp).toDate(),
         };
-      }).toList();
+      }));
+
+      return history;
     } catch (e) {
       print('Error fetching price history: $e');
       return [];
@@ -597,7 +618,7 @@ class CollectionService {
       final cards = await collection
           .doc(userId)
           .collection('userCards')
-          .where(FieldPath.documentId, whereIn: cardIds)
+          .where('id', whereIn: cardIds)  // Changed from document ID to card ID
           .get();
 
       double total = 0;
@@ -728,20 +749,22 @@ class CollectionService {
           .collection('customCollections')
           .doc(collectionId);
 
-      // Get current cardIds
+      // First get current cardIds
       final doc = await collectionRef.get();
       if (!doc.exists) throw Exception('Collection not found');
 
       final currentCardIds = List<String>.from(doc.data()?['cardIds'] ?? []);
-      currentCardIds.removeWhere((id) => cardIds.contains(id));
+      for (final cardId in cardIds) {
+        currentCardIds.remove(cardId);
+      }
 
-      // Update collection with new cardIds
+      // Update with new cardIds list
       await collectionRef.update({
         'cardIds': currentCardIds,
+        'updatedAt': FieldValue.serverTimestamp(),
       });
 
-      // Update collection price history
-      await _updateCollectionPriceHistory(collectionId);
+      print('Removed cards: $cardIds from collection: $collectionId'); // Debug log
     } catch (e) {
       print('Error removing cards from collection: $e');
       rethrow;
@@ -886,8 +909,24 @@ class CollectionService {
           final cardIds = List<String>.from(doc.data()?['cardIds'] ?? []);
           if (cardIds.isEmpty) return [];
 
-          final cards = await getCollectionCards(collectionId);
-          return cards;
+          // Get cards from userCards collection
+          final userCardsSnapshot = await collection
+              .doc(userId)
+              .collection('userCards')
+              .where('id', whereIn: cardIds)  // Changed from document ID to card ID
+              .get();
+
+          return userCardsSnapshot.docs.map((doc) {
+            final data = doc.data();
+            return TcgCard(
+              id: data['id'] as String,
+              name: data['name'] as String,
+              imageUrl: data['imageUrl'] as String,
+              setName: data['setName'] as String,
+              rarity: data['rarity'] as String,
+              price: data['price'] as double?,
+            );
+          }).toList();
         });
   }
 
