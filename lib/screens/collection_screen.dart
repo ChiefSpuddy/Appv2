@@ -12,6 +12,7 @@ import 'dart:math' show max;  // Add this import
 import 'home_screen.dart';
 import 'custom_collections_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';  // Add this import
+import 'package:lottie/lottie.dart';  // Add this import
 
 class CollectionScreen extends StatefulWidget {  // Change to StatefulWidget
   const CollectionScreen({super.key});
@@ -20,9 +21,27 @@ class CollectionScreen extends StatefulWidget {  // Change to StatefulWidget
   State<CollectionScreen> createState() => _CollectionScreenState();
 }
 
-class _CollectionScreenState extends State<CollectionScreen> {
+class _CollectionScreenState extends State<CollectionScreen> with SingleTickerProviderStateMixin {
   int _selectedIndex = 0; // 0: Collection, 1: Analytics, 2: Custom Collections
   static final _authService = AuthService();
+  late final AnimationController _animationController; // Add this
+
+  @override
+  void initState() {
+    super.initState();
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 8), // Increased from 5 to 8 seconds
+    );
+    _animationController.forward();
+    _animationController.repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    super.dispose();
+  }
 
   void _switchView(int index) {
     if (_selectedIndex == index) return;
@@ -345,21 +364,43 @@ class _CollectionScreenState extends State<CollectionScreen> {
           //   tooltip: 'Custom Collections',
           //   child: const Icon(Icons.collections_bookmark, size: 20),
           // ),
-          body: AnimatedSwitcher( // Add smooth transitions between views
-            duration: const Duration(milliseconds: 300),
-            switchInCurve: Curves.easeOut,
-            switchOutCurve: Curves.easeIn,
-            transitionBuilder: (Widget child, Animation<double> animation) {
-              return FadeTransition(
-                opacity: animation,
-                child: child,
-              );
-            },
-            child: _selectedIndex == 1
-              ? const CollectionAnalytics()
-              : _selectedIndex == 2
-                ? const CustomCollectionsScreen()
-                : const CollectionGrid(),
+          body: Stack(  // Wrap the body in a Stack
+            children: [
+              // Add Lottie background
+              if (_selectedIndex != 2) // Don't show on custom collections view
+                Positioned.fill(
+                  child: Opacity(
+                    opacity: 0.3, // Increased from 0.15
+                    child: Lottie.asset(
+                      'assets/animations/background.json',
+                      fit: BoxFit.cover,
+                      repeat: true,
+                      frameRate: FrameRate(30),
+                      options: LottieOptions(
+                        enableMergePaths: false,
+                      ),
+                      controller: _animationController,
+                    ),
+                  ),
+                ),
+              // Existing animated switcher
+              AnimatedSwitcher(
+                duration: const Duration(milliseconds: 300),
+                switchInCurve: Curves.easeOut,
+                switchOutCurve: Curves.easeIn,
+                transitionBuilder: (Widget child, Animation<double> animation) {
+                  return FadeTransition(
+                    opacity: animation,
+                    child: child,
+                  );
+                },
+                child: _selectedIndex == 1
+                  ? const CollectionAnalytics()
+                  : _selectedIndex == 2
+                    ? const CustomCollectionsScreen()
+                    : const CollectionGrid(),
+              ),
+            ],
           ),
         );
       },

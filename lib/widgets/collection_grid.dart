@@ -332,9 +332,14 @@ class _CollectionGridState extends State<CollectionGrid> {
   }
 }
 
-class CollectionGridView extends StatelessWidget {
+class CollectionGridView extends StatefulWidget {  // Change to StatefulWidget
   const CollectionGridView({super.key});
 
+  @override
+  State<CollectionGridView> createState() => _CollectionGridViewState();
+}
+
+class _CollectionGridViewState extends State<CollectionGridView> {
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<QuerySnapshot>(
@@ -355,20 +360,31 @@ class CollectionGridView extends StatelessWidget {
         }
 
         return GridView.builder(
-          padding: const EdgeInsets.all(8),
+          padding: const EdgeInsets.all(12),  // Increased from 8
           gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: 3,
-            childAspectRatio: 0.65, // Made taller
-            crossAxisSpacing: 6, // Slightly reduced spacing
-            mainAxisSpacing: 8,
+            childAspectRatio: 0.7,
+            crossAxisSpacing: 8,    // Increased from 4
+            mainAxisSpacing: 8,     // Increased from 4
           ),
           itemCount: snapshot.data!.docs.length,
           itemBuilder: (context, index) {
             final doc = snapshot.data!.docs[index];
             final data = doc.data() as Map<String, dynamic>;
-            return CardGridItem(
-              doc: doc,
-              data: data,
+            
+            return CardItem(
+              card: TcgCard(
+                id: data['id'],
+                name: data['name'],
+                imageUrl: data['imageUrl'],
+                setName: data['setName'],
+                rarity: data['rarity'],
+                price: data['price']?.toDouble(),
+              ),
+              docId: doc.id, // Pass the document ID
+              onRemoved: () {
+                setState(() {}); // This will trigger a rebuild
+              },
             );
           },
         );

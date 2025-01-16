@@ -63,143 +63,179 @@ class CardItem extends StatelessWidget {
             ),
           );
         },
-        onLongPress: () => _showOptions(context), // Add this
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Expanded(
-              flex: 8, // Increased flex ratio for image
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  Hero(
-                    tag: 'card_${card.id}',
-                    child: ClipRRect(  // Add this wrapper
-                      borderRadius: const BorderRadius.vertical(  // Add rounded corners to top only
-                        top: Radius.circular(8),
-                      ),
-                      child: Image.network(
-                        card.imageUrl,
-                        fit: BoxFit.contain, // Changed to contain
-                        alignment: Alignment.center,
-                        headers: const {
-                          'Access-Control-Allow-Origin': '*',
-                          'Referrer-Policy': 'no-referrer',
-                        },
-                        loadingBuilder: (context, child, loadingProgress) {
-                          if (loadingProgress == null) {
-                            return Container(  // Wrap image in container for consistent corners
-                              decoration: BoxDecoration(
-                                borderRadius: const BorderRadius.vertical(
-                                  top: Radius.circular(8),
+        onLongPress: () => _showOptions(context),
+        splashFactory: InkRipple.splashFactory, // Enhanced ripple effect
+        highlightColor: Colors.white.withOpacity(0.1), // Subtle highlight
+        splashColor: Colors.white.withOpacity(0.2), // Subtle splash
+        hoverColor: Colors.white.withOpacity(0.05), // Subtle hover
+        child: Material(
+          color: Colors.transparent,
+          child: AnimatedContainer( // Add smooth scaling on press
+            duration: const Duration(milliseconds: 150),
+            curve: Curves.easeOut,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(
+                  flex: 8, // Increased flex ratio for image
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      Hero(
+                        tag: 'card_${card.id}',
+                        child: ClipRRect(  // Add this wrapper
+                          borderRadius: const BorderRadius.vertical(  // Add rounded corners to top only
+                            top: Radius.circular(8),
+                          ),
+                          child: Image.network(
+                            card.imageUrl,
+                            fit: BoxFit.contain, // Changed to contain
+                            alignment: Alignment.center,
+                            headers: const {
+                              'Access-Control-Allow-Origin': '*',
+                              'Referrer-Policy': 'no-referrer',
+                            },
+                            loadingBuilder: (context, child, loadingProgress) {
+                              if (loadingProgress == null) {
+                                return Container(  // Wrap image in container for consistent corners
+                                  decoration: BoxDecoration(
+                                    borderRadius: const BorderRadius.vertical(
+                                      top: Radius.circular(8),
+                                    ),
+                                    color: isDark ? Colors.black : Colors.white,
+                                  ),
+                                  child: child,
+                                );
+                              }
+                              return Shimmer.fromColors(
+                                baseColor: Colors.grey[300]!,
+                                highlightColor: Colors.grey[100]!,
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: const BorderRadius.vertical(
+                                      top: Radius.circular(8),
+                                    ),
+                                  ),
                                 ),
-                                color: isDark ? Colors.black : Colors.white,
+                              );
+                            },
+                            errorBuilder: (_, __, ___) => buildErrorWidget(),
+                          ),
+                        ),
+                      ),
+                      Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => CardDetailsScreen(
+                                  card: card,
+                                  docId: docId,
+                                ),
                               ),
-                              child: child,
                             );
-                          }
-                          return Shimmer.fromColors(
-                            baseColor: Colors.grey[300]!,
-                            highlightColor: Colors.grey[100]!,
-                            child: Container(
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: const BorderRadius.vertical(
-                                  top: Radius.circular(8),
-                                ),
+                          },
+                          child: Ink(
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.bottomCenter,
+                                end: Alignment.topCenter,
+                                colors: [
+                                  Colors.black.withOpacity(0.3),
+                                  Colors.transparent,
+                                  Colors.transparent,
+                                ],
                               ),
                             ),
-                          );
-                        },
-                        errorBuilder: (_, __, ___) => buildErrorWidget(),
+                          ),
+                        ),
                       ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                  decoration: BoxDecoration(
+                    // Refined colors for the info area
+                    color: isDark 
+                      ? Colors.grey[900]?.withOpacity(0.8)  // More transparent dark
+                      : Colors.grey[50],  // Lighter grey for light mode
+                    borderRadius: const BorderRadius.vertical(
+                      bottom: Radius.circular(8),
+                    ),
+                    // Add subtle gradient overlay
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: isDark 
+                        ? [
+                            Colors.black.withOpacity(0.2),
+                            Colors.black.withOpacity(0.0),
+                          ]
+                        : [
+                            Colors.white.withOpacity(0.2),
+                            Colors.white.withOpacity(0.0),
+                          ],
                     ),
                   ),
-                  Material(
-                    color: Colors.transparent,
-                    child: InkWell(
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => CardDetailsScreen(
-                              card: card,
-                              docId: docId,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          card.name,
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w500,
+                            color: isDark 
+                              ? Colors.grey[300] 
+                              : Colors.grey[800],
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      if (card.price != null)
+                        Container(
+                          margin: const EdgeInsets.only(left: 4),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 4,
+                            vertical: 1,
+                          ),
+                          decoration: BoxDecoration(
+                            color: (isDark 
+                              ? Colors.green[900] 
+                              : Colors.green[50])?.withOpacity(0.6),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            '€${card.price!.toStringAsFixed(2)}',
+                            style: TextStyle(
+                              color: isDark 
+                                ? Colors.green[300] 
+                                : Colors.green[700],
+                              fontWeight: FontWeight.w600,
+                              fontSize: 10,
                             ),
                           ),
-                        );
-                      },
-                      child: Ink(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.bottomCenter,
-                            end: Alignment.topCenter,
-                            colors: [
-                              Colors.black.withOpacity(0.3),
-                              Colors.transparent,
-                              Colors.transparent,
-                            ],
-                          ),
                         ),
-                      ),
-                    ),
+                    ],
                   ),
-                ],
-              ),
-            ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-              decoration: BoxDecoration(
-                color: isDark ? Colors.grey[900] : Colors.grey[100],
-                borderRadius: const BorderRadius.vertical(
-                  bottom: Radius.circular(8),
                 ),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    card.name,
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w500,
-                      color: isDark ? Colors.grey[300] : Colors.grey[800],
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  if (card.price != null) ...[
-                    const SizedBox(height: 2),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 4,
-                        vertical: 1,
-                      ),
-                      decoration: BoxDecoration(
-                        color: (isDark ? Colors.green[900] : Colors.green[50])?.withOpacity(0.5),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        '€${card.price!.toStringAsFixed(2)}',
-                        style: TextStyle(
-                          color: isDark ? Colors.green[400] : Colors.green[700],
-                          fontWeight: FontWeight.w600,
-                          fontSize: 10,
-                        ),
-                      ),
-                    ),
-                  ],
-                ],
-              ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );
   }
 
   void _showOptions(BuildContext context) {
+    if (docId == null) return; // Early return if no docId
+
     showModalBottomSheet(
       context: context,
       builder: (context) => SafeArea(
@@ -218,9 +254,10 @@ class CardItem extends StatelessWidget {
             ListTile(
               leading: const Icon(Icons.delete_outline, color: Colors.red),
               title: const Text('Delete Card', style: TextStyle(color: Colors.red)),
-              onTap: () {
+              onTap: () async {
                 Navigator.pop(context);
-                _confirmDelete(context);
+                await _confirmDelete(context);
+                onRemoved?.call(); // Call the callback after successful deletion
               },
             ),
           ],
@@ -230,6 +267,8 @@ class CardItem extends StatelessWidget {
   }
 
   Future<void> _confirmDelete(BuildContext context) async {
+    if (docId == null) return;
+
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -249,10 +288,12 @@ class CardItem extends StatelessWidget {
       ),
     );
 
-    if (confirmed == true && context.mounted && docId != null) {
+    if (confirmed == true && context.mounted) {
       try {
         await CollectionService().removeCard(docId!);
         if (context.mounted) {
+          onRemoved?.call(); // Call the callback first
+          Navigator.pop(context); // Pop any open dialogs
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('Deleted ${card.name}')),
           );

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
+import 'package:lottie/lottie.dart';  // Add this import at the top
 import '../providers/theme_provider.dart';
 import '../services/auth_service.dart';
 import '../widgets/avatar_picker_dialog.dart';
@@ -298,156 +299,173 @@ class _ProfileScreenState extends State<ProfileScreen> {
         final isDark = Theme.of(context).brightness == Brightness.dark;
 
         return Scaffold(
-          appBar: AppBar(
-            title: const Text('Profile'),
-            elevation: 0,
-          ),
-          body: ListView(
+          // Remove AppBar here
+          body: Stack(  // Wrap the ListView in a Stack
             children: [
-              _buildProfileCard(context, user),
-              const SizedBox(height: 8),
-              
-              // Settings Section
-              Card(
-                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: Column(
-                  children: [
-                    ListTile(
-                      leading: const Icon(Icons.palette),
-                      title: const Text('Theme'),
-                      subtitle: Text(themeProvider.isDarkMode ? 'Dark Mode' : 'Light Mode'),
-                      trailing: Switch(
-                        value: themeProvider.isDarkMode,
-                        onChanged: (value) => themeProvider.toggleTheme(),
-                      ),
+              Positioned.fill(
+                child: Opacity(
+                  opacity: 0.3,
+                  child: Lottie.asset(
+                    'assets/animations/background.json',
+                    fit: BoxFit.cover,
+                    repeat: true,
+                    frameRate: FrameRate(30), // Optimize performance by reducing frame rate
+                    options: LottieOptions(
+                      enableMergePaths: false, // Disable merge paths for better performance
                     ),
-                  ],
+                  ),
                 ),
               ),
-
-              // Account Section
-              Card(
-                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+              SafeArea( // Add SafeArea here to protect content
+                child: ListView(
                   children: [
+                    _buildProfileCard(context, user),
+                    const SizedBox(height: 8),
+                    
+                    // Settings Section
+                    Card(
+                      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      child: Column(
+                        children: [
+                          ListTile(
+                            leading: const Icon(Icons.palette),
+                            title: const Text('Theme'),
+                            subtitle: Text(themeProvider.isDarkMode ? 'Dark Mode' : 'Light Mode'),
+                            trailing: Switch(
+                              value: themeProvider.isDarkMode,
+                              onChanged: (value) => themeProvider.toggleTheme(),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    // Account Section
+                    Card(
+                      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                            child: Text(
+                              'ACCOUNT',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: isDark ? Colors.grey[400] : Colors.grey[600],
+                              ),
+                            ),
+                          ),
+                          ListTile(
+                            leading: const Icon(Icons.password),
+                            title: const Text('Change Password'),
+                            onTap: () {
+                              showDialog(
+                                context: context,
+                                builder: (context) => PasswordResetDialog(
+                                  email: user.email ?? '',
+                                  onConfirm: (email) => _handlePasswordReset(context, email),
+                                ),
+                              );
+                            },
+                          ),
+                          ListTile(
+                            leading: Icon(
+                              Icons.logout,
+                              color: isDark ? Colors.red[300] : Colors.red,
+                            ),
+                            title: Text(
+                              'Sign Out',
+                              style: TextStyle(
+                                color: isDark ? Colors.red[300] : Colors.red,
+                              ),
+                            ),
+                            onTap: () async {
+                              await _authService.signOut();
+                              if (context.mounted) {
+                                Navigator.of(context).pushReplacementNamed('/');
+                              }
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    // Danger Zone
+                    Card(
+                      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Padding(
+                            padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
+                            child: Text(
+                              'DANGER ZONE',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.red,
+                              ),
+                            ),
+                          ),
+                          ListTile(
+                            leading: const Icon(Icons.delete_forever, color: Colors.red),
+                            title: const Text(
+                              'Delete Account',
+                              style: TextStyle(color: Colors.red),
+                            ),
+                            onTap: () {
+                              showDialog(
+                                context: context,
+                                builder: (context) => AlertDialog(
+                                  title: const Text('Delete Account'),
+                                  content: const Text(
+                                    'Are you sure you want to delete your account? This action cannot be undone.'
+                                  ),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () => Navigator.pop(context),
+                                      child: const Text('CANCEL'),
+                                    ),
+                                    TextButton(
+                                      onPressed: () {
+                                        // TODO: Implement account deletion
+                                        Navigator.pop(context);
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          const SnackBar(content: Text('Coming soon')),
+                                        );
+                                      },
+                                      child: const Text(
+                                        'DELETE',
+                                        style: TextStyle(color: Colors.red),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    // Credits Section
                     Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                      padding: const EdgeInsets.all(16),
                       child: Text(
-                        'ACCOUNT',
+                        'Powered by TCGPlayer, PokeAPI, and TCGAPI',
+                        textAlign: TextAlign.center,
                         style: TextStyle(
                           fontSize: 12,
-                          fontWeight: FontWeight.bold,
                           color: isDark ? Colors.grey[400] : Colors.grey[600],
                         ),
                       ),
                     ),
-                    ListTile(
-                      leading: const Icon(Icons.password),
-                      title: const Text('Change Password'),
-                      onTap: () {
-                        showDialog(
-                          context: context,
-                          builder: (context) => PasswordResetDialog(
-                            email: user.email ?? '',
-                            onConfirm: (email) => _handlePasswordReset(context, email),
-                          ),
-                        );
-                      },
-                    ),
-                    ListTile(
-                      leading: Icon(
-                        Icons.logout,
-                        color: isDark ? Colors.red[300] : Colors.red,
-                      ),
-                      title: Text(
-                        'Sign Out',
-                        style: TextStyle(
-                          color: isDark ? Colors.red[300] : Colors.red,
-                        ),
-                      ),
-                      onTap: () async {
-                        await _authService.signOut();
-                        if (context.mounted) {
-                          Navigator.of(context).pushReplacementNamed('/');
-                        }
-                      },
-                    ),
+                    const SizedBox(height: 32),
                   ],
                 ),
               ),
-
-              // Danger Zone
-              Card(
-                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Padding(
-                      padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
-                      child: Text(
-                        'DANGER ZONE',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.red,
-                        ),
-                      ),
-                    ),
-                    ListTile(
-                      leading: const Icon(Icons.delete_forever, color: Colors.red),
-                      title: const Text(
-                        'Delete Account',
-                        style: TextStyle(color: Colors.red),
-                      ),
-                      onTap: () {
-                        showDialog(
-                          context: context,
-                          builder: (context) => AlertDialog(
-                            title: const Text('Delete Account'),
-                            content: const Text(
-                              'Are you sure you want to delete your account? This action cannot be undone.'
-                            ),
-                            actions: [
-                              TextButton(
-                                onPressed: () => Navigator.pop(context),
-                                child: const Text('CANCEL'),
-                              ),
-                              TextButton(
-                                onPressed: () {
-                                  // TODO: Implement account deletion
-                                  Navigator.pop(context);
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(content: Text('Coming soon')),
-                                  );
-                                },
-                                child: const Text(
-                                  'DELETE',
-                                  style: TextStyle(color: Colors.red),
-                                ),
-                              ),
-                            ],
-                          ),
-                        );
-                      },
-                    ),
-                  ],
-                ),
-              ),
-
-              // Credits Section
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: Text(
-                  'Powered by TCGPlayer, PokeAPI, and TCGAPI',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: isDark ? Colors.grey[400] : Colors.grey[600],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 32),
             ],
           ),
         );

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:firebase_auth/firebase_auth.dart'; // Add this import
+import 'package:lottie/lottie.dart';  // Add this import
+import '../services/auth_service.dart';  // Add this import
 import 'dart:math' show max, min;
 import '../services/collection_service.dart';
 import '../models/custom_collection.dart';
@@ -12,8 +14,33 @@ import '../services/background_service.dart';
 import '../screens/custom_collection_detail_screen.dart'; // Fixed import path
 import './custom_collection_detail_screen.dart'; // Add this import
 
-class CustomCollectionsScreen extends StatelessWidget {
+class CustomCollectionsScreen extends StatefulWidget {  // Change to StatefulWidget
   const CustomCollectionsScreen({super.key});
+
+  @override
+  State<CustomCollectionsScreen> createState() => _CustomCollectionsScreenState();
+}
+
+class _CustomCollectionsScreenState extends State<CustomCollectionsScreen> with SingleTickerProviderStateMixin {
+  static final AuthService _authService = AuthService();
+  late final AnimationController _animationController;
+
+  @override
+  void initState() {
+    super.initState();
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 5), // Increase duration to 5 seconds
+    );
+    _animationController.forward();
+    _animationController.repeat(reverse: true); // Add reverse for smoother loop
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    super.dispose();
+  }
 
   Future<void> _createNewCollection(BuildContext context, CollectionService service) async {
     final formKey = GlobalKey<FormState>();
@@ -147,81 +174,66 @@ class CustomCollectionsScreen extends StatelessWidget {
     final service = CollectionService();
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      appBar: AppBar(
-        backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
-        leading: IconButton(
-          icon: Icon(
-            Icons.arrow_back,
-            color: Theme.of(context).appBarTheme.foregroundColor,
-          ),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        title: Text(
-          'Custom Collections',
-          style: TextStyle(
-            color: Theme.of(context).appBarTheme.foregroundColor,
-          ),
-        ),
-        actions: [
-          IconButton(
-            icon: Icon(
-              Icons.add,
-              color: Theme.of(context).appBarTheme.foregroundColor,
-            ),
-            onPressed: () => _createNewCollection(context, service),
-          ),
-        ],
-      ),
-      body: StreamBuilder<List<CustomCollection>>(  // Change from FutureBuilder to StreamBuilder
-        stream: service.getCustomCollectionsStream(),  // New stream method
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-
-          if (snapshot.hasError) {
-            return Center(child: Text('Error: ${snapshot.error}'));
-          }
-
-          final collections = snapshot.data ?? [];
-          if (collections.isEmpty) {
-            return const Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.collections_bookmark_outlined, 
-                    size: 64, color: Colors.grey),
-                  SizedBox(height: 16),
-                  Text(
-                    'No custom collections yet\nCreate one from your collection',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.grey),
-                  ),
-                ],
+    return Stack(  // Changed from Scaffold to Stack
+      children: [
+        // Add Lottie background
+        Positioned.fill(
+          child: Opacity(
+            opacity: 0.35, // Increased from 0.2
+            child: Lottie.asset(
+              'assets/animations/background.json',
+              fit: BoxFit.cover,
+              repeat: true,
+              frameRate: FrameRate(30),
+              options: LottieOptions(
+                enableMergePaths: false,
               ),
-            );
-          }
+              controller: _animationController,
+            ),
+          ),
+        ),
+        // Existing StreamBuilder
+        StreamBuilder<List<CustomCollection>>(  // Change from FutureBuilder to StreamBuilder
+          stream: service.getCustomCollectionsStream(),  // New stream method
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
 
-          return ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: collections.length,
-            itemBuilder: (context, index) {
-              final collection = collections[index];
-              return _buildCollectionCard(context, collection); // Pass context here
-            },
-          );
-        },
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        heroTag: 'createCollection',  // Add this if you have multiple FABs
-        onPressed: () => _createNewCollection(context, CollectionService()), // Change this line
-        backgroundColor: Colors.green.shade600,  // Add this
-        foregroundColor: Colors.white,  // Add this
-        label: const Text('Create Collection'),
-        icon: const Icon(Icons.add),
-      ),
+            if (snapshot.hasError) {
+              return Center(child: Text('Error: ${snapshot.error}'));
+            }
+
+            final collections = snapshot.data ?? [];
+            if (collections.isEmpty) {
+              return const Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.collections_bookmark_outlined, 
+                      size: 64, color: Colors.grey),
+                    SizedBox(height: 16),
+                    Text(
+                      'No custom collections yet\nCreate one from your collection',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: Colors.grey),
+                    ),
+                  ],
+                ),
+              );
+            }
+
+            return ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: collections.length,
+              itemBuilder: (context, index) {
+                final collection = collections[index];
+                return _buildCollectionCard(context, collection); // Pass context here
+              },
+            );
+          },
+        ),
+      ],
     );
   }
 
@@ -407,55 +419,18 @@ class CustomCollectionsScreen extends StatelessWidget {
   }
 
   Widget _buildCollectionCard(BuildContext context, CustomCollection collection) {
-    final priceHistory = collection.priceHistory;
-    double? growth24h;
-    double? growthPercentage;
-    
-    if (priceHistory.length >= 2) {
-      final now = DateTime.now();
-      final yesterday = now.subtract(const Duration(days: 1));
-      
-      final latestPrice = collection.totalValue ?? 0;
-      final previousPrice = priceHistory
-          .where((entry) => (entry['timestamp'] as Timestamp)
-              .toDate()
-              .isAfter(yesterday))
-          .firstOrNull?['value'] as double? ?? latestPrice;
-      
-      growth24h = latestPrice - previousPrice;
-      growthPercentage = previousPrice > 0 ? (growth24h / previousPrice) * 100 : 0;
-    }
+    final stats = _calculateStats(collection);
 
     return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      elevation: 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
+      margin: const EdgeInsets.only(bottom: 8),
       child: InkWell(
-        onTap: () => Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => CustomCollectionDetailScreen(collection: collection),
-          ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        onTap: () => _navigateToCollection(context, collection),
+        child: Row(
           children: [
-            // Card Preview Section with gradient overlay
-            Container(
+            // Card Preview Carousel
+            SizedBox(
+              width: 100,
               height: 120,
-              decoration: BoxDecoration(
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    Colors.black.withOpacity(0.4),
-                    Colors.transparent,
-                  ],
-                ),
-              ),
               child: StreamBuilder<List<TcgCard>>(
                 stream: CollectionService().getCollectionCardsStream(collection.id),
                 builder: (context, snapshot) {
@@ -463,37 +438,56 @@ class CustomCollectionsScreen extends StatelessWidget {
                   if (cards.isEmpty) {
                     return const Center(
                       child: Icon(Icons.collections_bookmark_outlined, 
-                        size: 48, color: Colors.white70),
+                        size: 36, color: Colors.grey),
                     );
                   }
 
-                  return ListView.builder(
+                  // Use PageView for smooth scrolling
+                  return PageView.builder(
                     scrollDirection: Axis.horizontal,
-                    padding: const EdgeInsets.all(8),
-                    itemCount: cards.length.clamp(0, 5),
+                    itemCount: cards.length.clamp(0, 5), // Show max 5 cards
+                    padEnds: false,  // Removes extra padding
+                    pageSnapping: false,  // Allows smooth scrolling
                     itemBuilder: (context, index) {
-                      return Padding(
-                        padding: const EdgeInsets.only(right: 8),
-                        child: Hero(
-                          tag: 'card_${cards[index].id}_preview',
-                          child: Container(
-                            width: 80,
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(8),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.2),
-                                  blurRadius: 4,
-                                  offset: const Offset(0, 2),
-                                ),
-                              ],
+                      return Container(
+                        margin: const EdgeInsets.symmetric(horizontal: 4),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(8),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.2),
+                              blurRadius: 4,
+                              offset: const Offset(0, 2),
                             ),
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(8),
-                              child: Image.network(
-                                cards[index].imageUrl,
-                                fit: BoxFit.cover,
-                              ),
+                          ],
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: Hero(
+                            tag: 'card_${cards[index].id}_preview',
+                            child: Image.network(
+                              cards[index].imageUrl,
+                              fit: BoxFit.cover,
+                              loadingBuilder: (context, child, progress) {
+                                if (progress == null) return child;
+                                return Container(
+                                  color: Colors.grey[200],
+                                  child: const Center(
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  ),
+                                );
+                              },
+                              errorBuilder: (context, error, stackTrace) {
+                                return Container(
+                                  color: Colors.grey[200],
+                                  child: const Icon(
+                                    Icons.broken_image,
+                                    color: Colors.grey,
+                                  ),
+                                );
+                              },
                             ),
                           ),
                         ),
@@ -503,152 +497,66 @@ class CustomCollectionsScreen extends StatelessWidget {
                 },
               ),
             ),
-            // Collection Info Section
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              collection.name,
-                              style: const TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                              ),
+            // Collection Info
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            collection.name,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
                             ),
-                            if (collection.description.isNotEmpty) ...[
-                              const SizedBox(height: 4),
-                              Text(
-                                collection.description,
-                                style: TextStyle(
-                                  color: Colors.grey[600],
-                                  fontSize: 13,
-                                ),
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ],
-                          ],
+                          ),
                         ),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.more_vert),
-                        onPressed: () => _showCollectionMenu(
-                          context, collection, CollectionService(),
+                        IconButton(
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                          icon: const Icon(Icons.more_vert, size: 20),
+                          onPressed: () => _showCollectionMenu(context, collection, CollectionService()),
+                        ),
+                      ],
+                    ),
+                    if (stats.cards > 0) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        '${stats.cards} cards • €${stats.totalValue.toStringAsFixed(2)}',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Theme.of(context).textTheme.bodySmall?.color,
                         ),
                       ),
                     ],
-                  ),
-                  const SizedBox(height: 12),
-                  // Stats Row
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).cardColor,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                        color: Colors.grey.withOpacity(0.2),
+                    if (stats.growth24h != null) ...[
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Icon(
+                            stats.growth24h! >= 0 ? Icons.trending_up : Icons.trending_down,
+                            size: 16,
+                            color: stats.growth24h! >= 0 ? Colors.green[700] : Colors.red[700],
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            '${stats.growth24h!.abs().toStringAsFixed(1)}%',
+                            style: TextStyle(
+                              color: stats.growth24h! >= 0 ? Colors.green[700] : Colors.red[700],
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-                    child: Row(
-                      children: [
-                        // Cards & Value
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Icon(Icons.style,
-                                    size: 16,
-                                    color: Colors.grey[600],
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    '${collection.cardIds.length} cards',
-                                    style: const TextStyle(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              if (collection.totalValue != null) ...[
-                                const SizedBox(height: 4),
-                                Text(
-                                  '€${collection.totalValue!.toStringAsFixed(2)}',
-                                  style: TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                    color: Theme.of(context).primaryColor,
-                                  ),
-                                ),
-                              ],
-                            ],
-                          ),
-                        ),
-                        // 24h Change
-                        if (growth24h != null)
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 8,
-                            ),
-                            decoration: BoxDecoration(
-                              color: growth24h >= 0
-                                  ? Colors.green.withOpacity(0.1)
-                                  : Colors.red.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.end,
-                              children: [
-                                Text(
-                                  '24h',
-                                  style: TextStyle(
-                                    color: Colors.grey[600],
-                                    fontSize: 12,
-                                  ),
-                                ),
-                                const SizedBox(height: 2),
-                                Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(
-                                      growth24h >= 0
-                                          ? Icons.arrow_upward
-                                          : Icons.arrow_downward,
-                                      size: 14,
-                                      color: growth24h >= 0
-                                          ? Colors.green[700]
-                                          : Colors.red[700],
-                                    ),
-                                    const SizedBox(width: 2),
-                                    Text(
-                                      '${growthPercentage!.abs().toStringAsFixed(1)}%',
-                                      style: TextStyle(
-                                        color: growth24h >= 0
-                                            ? Colors.green[700]
-                                            : Colors.red[700],
-                                        fontWeight: FontWeight.w500,
-                                        fontSize: 14,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                ],
+                    ],
+                  ],
+                ),
               ),
             ),
           ],
@@ -656,6 +564,44 @@ class CustomCollectionsScreen extends StatelessWidget {
       ),
     );
   }
+
+  CollectionStats _calculateStats(CustomCollection collection) {
+    double? growth24h;
+    
+    if (collection.priceHistory.length >= 2) {
+      final now = DateTime.now();
+      final yesterday = now.subtract(const Duration(days: 1));
+      
+      final latestPrice = collection.totalValue ?? 0;
+      final previousPrice = collection.priceHistory
+          .where((entry) => (entry['timestamp'] as Timestamp)
+              .toDate()
+              .isAfter(yesterday))
+          .firstOrNull?['value'] as double? ?? latestPrice;
+      
+      if (previousPrice > 0) {
+        growth24h = ((latestPrice - previousPrice) / previousPrice) * 100;
+      }
+    }
+
+    return CollectionStats(
+      cards: collection.cardIds.length,
+      totalValue: collection.totalValue ?? 0,
+      growth24h: growth24h,
+    );
+  }
+}
+
+class CollectionStats {
+  final int cards;
+  final double totalValue;
+  final double? growth24h;
+
+  CollectionStats({
+    required this.cards,
+    required this.totalValue,
+    this.growth24h,
+  });
 }
 
 class _CollectionCard extends StatelessWidget {
@@ -1773,3 +1719,4 @@ class CollectionDetailScreen extends StatelessWidget {
     );
   }
 }
+
