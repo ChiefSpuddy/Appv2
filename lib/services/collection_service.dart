@@ -13,6 +13,7 @@ class CollectionService {
   final CollectionReference collection = FirebaseFirestore.instance.collection('cards');
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseFirestore _db = FirebaseFirestore.instance;  // Add this line at the top with other fields
 
   Future<void> _updatePriceHistory() async {
     try {
@@ -1586,5 +1587,39 @@ class CollectionService {
         .update({
           'cardIds': FieldValue.arrayRemove([cardId])
         });
+  }
+
+  Future<List<Map<String, dynamic>>> getTopValueCards({int limit = 3}) async {
+    try {
+      final userId = FirebaseAuth.instance.currentUser?.uid;
+      print('Current user ID: $userId'); // Debug print
+      if (userId == null) return [];
+
+      final snapshot = await _firestore // Change _db to _firestore
+          .collection('users')
+          .doc(userId)
+          .collection('userCards')
+          .where('price', isNull: false) // Add this to filter out cards without prices
+          .orderBy('price', descending: true)
+          .limit(limit)
+          .get();
+
+      print('Found ${snapshot.docs.length} cards'); // Debug print
+
+      return snapshot.docs.map((doc) {
+        final data = doc.data();
+        print('Card data: $data'); // Debug print
+        return {
+          'id': doc.id,
+          'name': data['name'] ?? 'Unknown',
+          'imageUrl': data['imageUrl'] ?? '',
+          'price': (data['price'] as num?)?.toDouble() ?? 0.0,
+          'setName': data['setName'] ?? '',
+        };
+      }).toList();
+    } catch (e) {
+      print('Error fetching top value cards: $e'); // Debug print
+      return [];
+    }
   }
 }

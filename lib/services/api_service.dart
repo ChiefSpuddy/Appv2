@@ -56,15 +56,15 @@ class ApiService {
     },
     {
       'name': 'Trending',
-      'icon': '🌟',
+      'icon': '🔥',
       'query': 'rarity:"Special Illustration Rare" set.series:"Scarlet & Violet"',
       'description': 'Special Illustration Rare Cards',
     },
     {
       'name': 'Full Art',
       'icon': '🎨',
-      'query': 'subtypes:"Full Art"',
-      'description': 'Full Art Cards',
+      'query': 'rarity:"Illustration Rare"',
+      'description': 'Illustration Rare Cards',
     },
   ];
 

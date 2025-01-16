@@ -42,6 +42,89 @@ class _HomeOverviewState extends State<HomeOverview> with SingleTickerProviderSt
     _animationController.forward(from: 0);
   }
 
+  Widget _buildTopCards() {
+    return FutureBuilder<List<Map<String, dynamic>>>(
+      future: _service.getTopValueCards(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData || snapshot.data!.isEmpty) {
+          return const SizedBox.shrink();
+        }
+
+        return Card(
+          elevation: 2,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Most Valuable Cards',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  height: 180,
+                  child: Row(
+                    children: snapshot.data!.map((card) {
+                      return Expanded(
+                        child: GestureDetector(
+                          onTap: () {
+                            // Navigate to collection screen with card ID
+                            Navigator.pushNamed(context, '/collection');
+                          },
+                          child: Card(
+                            elevation: 4,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Column(
+                              children: [
+                                Expanded(
+                                  child: ClipRRect(
+                                    borderRadius: const BorderRadius.vertical(
+                                      top: Radius.circular(8),
+                                    ),
+                                    child: Image.network(
+                                      card['imageUrl'],
+                                      fit: BoxFit.contain,
+                                      loadingBuilder: (context, child, progress) {
+                                        if (progress == null) return child;
+                                        return const Center(
+                                          child: CircularProgressIndicator(),
+                                        );
+                                      },
+                                    ),
+                                  ),
+                                ),
+                                Padding(
+                                  padding: const EdgeInsets.all(8.0),
+                                  child: Text(
+                                    '€${(card['price'] as num).toStringAsFixed(2)}',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<Map<String, dynamic>>(
@@ -70,6 +153,8 @@ class _HomeOverviewState extends State<HomeOverview> with SingleTickerProviderSt
           padding: const EdgeInsets.all(16),
           children: [
             _buildPortfolioHeader(stats),
+            const SizedBox(height: 24),
+            _buildTopCards(), // Make sure this line is here
             const SizedBox(height: 24),
             _buildPriceChart(_service),
             const SizedBox(height: 24),
