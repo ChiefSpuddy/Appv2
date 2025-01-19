@@ -12,6 +12,8 @@ NS_ASSUME_NONNULL_BEGIN
 - (void)signInWithCompletion:(void (^)(NSError * _Nullable error))completion;
 - (void)signOut;
 - (BOOL)handleURL:(NSURL *)url sourceApplication:(NSString *)sourceApplication annotation:(id)annotation;
+- (void)didFinishWithAuth:(GTMAppAuthFetcherAuthorization *)authorization 
+                   error:(NSError *)error;
 
 @end
 
