@@ -1,8 +1,11 @@
 #include? "Pods/Target Support Files/Pods-Runner/Pods-Runner.debug.xcconfig"
 #include "Generated.xcconfig"
 
-CLANG_C_LANGUAGE_STANDARD = c11
+SWIFT_EMIT_MODULE_INTERFACE = NO
 SWIFT_VERSION = 5.0
 SWIFT_OPTIMIZATION_LEVEL = -Onone
 SWIFT_COMPILATION_MODE = singlefile
-SWIFT_EMIT_MODULE_INTERFACE = NO
+VALIDATES_PRODUCT = YES
+
+GCC_PREPROCESSOR_DEFINITIONS = $(inherited) COCOAPODS=1 $(inherited)
+HEADER_SEARCH_PATHS = $(inherited) "${PODS_ROOT}/Headers/Public" "${PODS_ROOT}/Headers/Public/GTMAppAuth"
