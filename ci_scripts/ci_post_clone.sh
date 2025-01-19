@@ -14,6 +14,10 @@ echo "Changed to repository root: $(pwd)"
 git clone https://github.com/flutter/flutter.git -b stable "$HOME/flutter"
 export PATH="$PATH:$HOME/flutter/bin"
 
+# Precache iOS artifacts
+echo "Precaching iOS artifacts..."
+flutter precache --ios
+
 # Debug: Verify Flutter installation
 echo "Flutter version:"
 flutter --version
@@ -24,11 +28,20 @@ flutter pub get
 # Check if iOS directory exists
 if [ -d "ios" ]; then
     echo "iOS directory found, installing pods..."
+    
+    # Clean pods first
     cd ios
-    pod install
+    rm -rf Pods
+    rm -f Podfile.lock
+    
+    # Install pods
+    flutter clean
+    flutter pub get
+    pod install --repo-update
     cd ..
 else
-    echo "Warning: iOS directory not found"
+    echo "Error: iOS directory not found"
+    exit 1
 fi
 
 # Make sure Flutter is ready for iOS builds
