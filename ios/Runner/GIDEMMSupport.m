@@ -1,14 +1,32 @@
-#import "GoogleSignIn-Bridging.h"
+#import <Foundation/Foundation.h>
+#import <GoogleSignIn/GoogleSignIn.h>
+#import <GTMAppAuth/GTMAppAuth.h>
 
-@implementation GIDEMMSupport
+@implementation GIDEMMSupport {
+    GTMAppAuthFetcherAuthorization *_authorization;
+    OIDAuthState *_authState;
+}
 
-@synthesize authState = _authState;
-@synthesize authorization = _authorization;
+- (GTMAppAuthFetcherAuthorization *)authorization {
+    return _authorization;
+}
 
-- (void)didFinishWithAuth:(nullable GTMAppAuthFetcherAuthorization *)authorization 
-                   error:(nullable NSError *)error {
+- (void)setAuthorization:(GTMAppAuthFetcherAuthorization *)authorization {
+    _authorization = authorization;
+}
+
+- (OIDAuthState *)authState {
+    return _authState;
+}
+
+- (void)setAuthState:(OIDAuthState *)authState {
+    _authState = authState;
+}
+
+- (void)didFinishWithAuth:(GTMAppAuthFetcherAuthorization *)authorization 
+                   error:(NSError *)error {
     if (error) {
-        NSLog(@"Auth error: %@", error);
+        NSLog(@"EMM Auth error: %@", error);
         return;
     }
     
