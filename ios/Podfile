@@ -41,10 +41,7 @@ target 'Runner' do
   use_frameworks!
   use_modular_headers!
   
-  # Remove these lines completely
-  # pod 'GTMAppAuth', '1.3.1'
-  # pod 'AppAuth', '~> 1.7.4'
-  
+  # Remove ALL Google-related pods
   flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
   
   target 'RunnerTests' do
@@ -70,27 +67,9 @@ post_install do |installer|
       config.build_settings['DEFINES_MODULE'] = 'YES'
       config.build_settings['SWIFT_INSTALL_OBJC_HEADER'] = 'NO'
       
-      # Force modular headers for all Firebase-related pods
-      if target.name.include?('Firebase') || target.name.include?('Google')
-        config.build_settings['CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER'] = 'NO'
-        config.build_settings['APPLICATION_EXTENSION_API_ONLY'] = 'NO'
-        config.build_settings['BUILD_LIBRARY_FOR_DISTRIBUTION'] = 'YES'
-      end
-      
-      # For Firebase-specific targets
-      if target.name.start_with?('Firebase') || target.name.include?('Firebase')
-        config.build_settings['CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER'] = 'NO'
-        config.build_settings['SWIFT_INCLUDE_PATHS'] = ['$(inherited)', '${PODS_ROOT}/Firebase']
-      end
-
-      # Special handling for GTMAppAuth - Move this inside the config loop
-      if target.name == 'GTMAppAuth'
-        config.build_settings['SWIFT_VERSION'] = '5.0'
-        config.build_settings['ENABLE_BITCODE'] = 'NO'
-        config.build_settings['BUILD_LIBRARY_FOR_DISTRIBUTION'] = 'YES'
-        config.build_settings['SWIFT_EMIT_MODULE_INTERFACE'] = 'NO'
-        config.build_settings['DEFINES_MODULE'] = 'NO'
-      end
+      # Remove these sections completely:
+      # if target.name == 'GTMAppAuth'
+      # if target.name.include?('Google')
     end
     flutter_additional_ios_build_settings(target)
     
