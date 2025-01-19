@@ -41,12 +41,14 @@ post_install do |installer|
     target.build_configurations.each do |config|
       config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '12.0'
       
-      # Add specific settings for BoringSSL-GRPC
+      # Add specific compiler settings for BoringSSL-GRPC
       if target.name == 'BoringSSL-GRPC'
-        config.build_settings['OTHER_CFLAGS'] ||= '$(inherited)'
-        config.build_settings['OTHER_CFLAGS'] << ' -fno-sanitize=vptr'
-        config.build_settings.delete('SUPPORTED_PLATFORMS')
-        config.build_settings['SUPPORTS_MACCATALYST'] = 'NO'
+        config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] ||= ['$(inherited)']
+        config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] << 'OPENSSL_NO_ASM=1'
+        config.build_settings['CLANG_WARN_DOCUMENTATION_COMMENTS'] = 'NO'
+        config.build_settings['OTHER_CFLAGS'] = '$(inherited) -Wno-shorten-64-to-32'
+        # Remove problematic flags
+        config.build_settings['OTHER_CFLAGS'] = config.build_settings['OTHER_CFLAGS'].gsub(/-G\s*/, '') if config.build_settings['OTHER_CFLAGS']
       end
     end
     flutter_additional_ios_build_settings(target)
