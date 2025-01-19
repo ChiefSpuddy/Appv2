@@ -42,8 +42,4 @@
     self.authorization = [[GTMAppAuthFetcherAuthorization alloc] initWithAuthState:self.authState];
 }
 
-- (void)authState:(OIDAuthState *)state didEncounterAuthorizationError:(NSError *)error {
-    // Handle authorization errors
-}
-
-@end
+- (

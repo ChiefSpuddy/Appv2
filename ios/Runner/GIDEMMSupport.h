@@ -1,19 +1,17 @@
 #import <Foundation/Foundation.h>
 #import <GoogleSignIn/GoogleSignIn.h>
 #import <GTMAppAuth/GTMAppAuth.h>
+#import <GTMSessionFetcher/GTMSessionFetcher.h>
 
 NS_ASSUME_NONNULL_BEGIN
 
-@interface GIDEMMSupport : NSObject <GTMAppAuthFetcherAuthorizationDelegate>
+@interface GIDEMMSupport : NSObject <OIDAuthStateChangeDelegate>
 
 @property(nonatomic, strong, nullable) GTMAppAuthFetcherAuthorization *authorization;
 @property(nonatomic, strong, nullable) OIDAuthState *authState;
 
-- (void)signInWithCompletion:(void (^)(NSError * _Nullable error))completion;
-- (void)signOut;
-- (BOOL)handleURL:(NSURL *)url sourceApplication:(NSString *)sourceApplication annotation:(id)annotation;
-- (void)didFinishWithAuth:(GTMAppAuthFetcherAuthorization *)authorization 
-                   error:(NSError *)error;
+- (void)didFinishWithAuth:(nullable GTMAppAuthFetcherAuthorization *)authorization 
+                   error:(nullable NSError *)error;
 
 @end
 
