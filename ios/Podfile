@@ -69,6 +69,7 @@ post_install do |installer|
         # Stricter C language settings
         config.build_settings['GCC_C_LANGUAGE_STANDARD'] = 'c99'
         config.build_settings['CLANG_CXX_LANGUAGE_STANDARD'] = 'c++11'
+        config.build_settings['CLANG_C_LANGUAGE_STANDARD'] = 'c11'
       end
     end
     flutter_additional_ios_build_settings(target)
