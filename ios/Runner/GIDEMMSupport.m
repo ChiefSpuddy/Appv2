@@ -1,11 +1,15 @@
 #import <Foundation/Foundation.h>
 #import <GoogleSignIn/GoogleSignIn.h>
 #import <GTMAppAuth/GTMAppAuth.h>
+#import "GIDEMMSupport.h"
 
 @implementation GIDEMMSupport {
     GTMAppAuthFetcherAuthorization *_authorization;
     OIDAuthState *_authState;
 }
+
+@synthesize authorization = _authorization;
+@synthesize authState = _authState;
 
 - (GTMAppAuthFetcherAuthorization *)authorization {
     return _authorization;
@@ -32,6 +36,14 @@
     
     self.authorization = authorization;
     self.authState = authorization.authState;
+}
+
+- (void)authState:(OIDAuthState *)state didChangeTokensWithAddition:(nullable OIDTokenResponse *)tokensAdded removal:(nullable OIDTokenResponse *)tokensRemoved {
+    self.authorization = [[GTMAppAuthFetcherAuthorization alloc] initWithAuthState:self.authState];
+}
+
+- (void)authState:(OIDAuthState *)state didEncounterAuthorizationError:(NSError *)error {
+    // Handle authorization errors
 }
 
 @end

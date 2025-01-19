@@ -1,4 +1,4 @@
-platform :ios, '13.0'
+platform :ios, '12.0'
 
 # CocoaPods analytics sends network stats synchronously affecting flutter build latency.
 ENV['COCOAPODS_DISABLE_STATS'] = 'true'
@@ -41,10 +41,9 @@ target 'Runner' do
   use_frameworks!
   use_modular_headers!
 
-  # Remove specific versions and let plugins handle dependencies
-  # pod 'GoogleSignIn', '~> 7.0'  # Remove this
-  # pod 'GTMAppAuth', '~> 2.0'    # Remove this
-  # pod 'AppAuth', '>= 1.7.4'     # Remove this
+  # Google Sign In - updated versions
+  pod 'GoogleSignIn', '~> 7.1'
+  pod 'GTMAppAuth', '>= 4.1.1', '< 5.0'
   
   # Firebase dependencies with specific versions
   pod 'Firebase/Analytics'
