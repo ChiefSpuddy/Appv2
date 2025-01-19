@@ -46,19 +46,18 @@ post_install do |installer|
       config.build_settings['BUILD_LIBRARY_FOR_DISTRIBUTION'] = 'YES'
       config.build_settings['ARCHS'] = 'arm64'
       
-      # Add specific settings for BoringSSL-GRPC
+      # More aggressive handling for BoringSSL-GRPC
       if target.name == 'BoringSSL-GRPC'
-        config.build_settings['GCC_OPTIMIZATION_LEVEL'] = 's'
-        config.build_settings['COMPILER_INDEX_STORE_ENABLE'] = 'NO'
-        config.build_settings['ONLY_ACTIVE_ARCH'] = 'NO'
-        config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] ||= ['$(inherited)']
-        config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] << 'BORINGSSL_PREFIX=CF'
+        config.build_settings.delete('OTHER_CFLAGS')
+        config.build_settings.delete('OTHER_CXXFLAGS')
+        config.build_settings.delete('OTHER_LDFLAGS')
+        
         config.build_settings['OTHER_CFLAGS'] = '-fno-omit-frame-pointer'
         config.build_settings['OTHER_CXXFLAGS'] = '-fno-omit-frame-pointer'
-        
-        # Remove problematic compiler flags
-        config.build_settings['OTHER_CFLAGS'] = config.build_settings['OTHER_CFLAGS'].to_s.gsub(/-G ?\d+/, '')
-        config.build_settings['OTHER_CXXFLAGS'] = config.build_settings['OTHER_CXXFLAGS'].to_s.gsub(/-G ?\d+/, '')
+        config.build_settings['GCC_OPTIMIZATION_LEVEL'] = '1'
+        config.build_settings['COMPILER_INDEX_STORE_ENABLE'] = 'NO'
+        config.build_settings['ONLY_ACTIVE_ARCH'] = 'NO'
+        config.build_settings['CLANG_ENABLE_MODULES'] = 'NO'
       end
     end
     flutter_additional_ios_build_settings(target)
