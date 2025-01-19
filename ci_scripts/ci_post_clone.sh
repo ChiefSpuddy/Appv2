@@ -2,6 +2,9 @@
 
 # Exit if any command fails
 set -e
+set -x
+
+echo "Running post-clone script..."
 
 # Debug: Print current directory
 echo "Current working directory: $(pwd)"
@@ -58,3 +61,21 @@ flutter doctor -v
 # Debug: List important directories
 echo "Repository contents:"
 ls -la
+
+# Install CocoaPods if needed
+if ! command -v pod &> /dev/null; then
+    sudo gem install cocoapods
+fi
+
+# Setup iOS build
+cd ios
+pod cache clean --all
+pod deintegrate
+pod repo update
+pod install --verbose
+
+# Create workspace symlink at root
+cd ..
+ln -s ios/Runner.xcworkspace Runner.xcworkspace
+
+echo "Post-clone setup completed"

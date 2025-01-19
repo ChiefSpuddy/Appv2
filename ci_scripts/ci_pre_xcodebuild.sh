@@ -1,67 +1,55 @@
 #!/bin/bash
 
-# Exit if any command fails
 set -e
-set -x  # Enable debug output
+set -x
 
 echo "Running pre-xcodebuild script..."
 
-# Navigate to repository root (parent of ci_scripts)
+# Navigate to repository root
 cd "$(dirname "$0")/.."
-echo "Changed to repository root: $(pwd)"
+REPO_ROOT=$(pwd)
 
-# Debug: Print environment
-echo "FLUTTER_ROOT: $HOME/flutter"
-echo "Directory contents:"
-ls -la
-
-# Make sure we're using the right Flutter version
+# Ensure Flutter is available
 export PATH="$PATH:$HOME/flutter/bin"
 flutter --version
 
 # Verify iOS directory exists
 if [ ! -d "ios" ]; then
     echo "Error: iOS directory not found!"
-    echo "Current directory contents:"
-    ls -la
     exit 1
 fi
 
-# Ensure we're in the ios directory
-cd ios || exit 1
+echo "Running flutter clean and pub get..."
+flutter clean
+flutter pub get
+
+cd ios
 
 # Clean everything first
 rm -rf Pods build Runner.xcworkspace
 rm -rf ~/Library/Developer/Xcode/DerivedData/*
 
 # Setup pods
-pod cache clean --all
+echo "Setting up CocoaPods..."
 pod deintegrate
+pod cache clean --all
 pod repo update
-pod install  # This will recreate Runner.xcworkspace
+pod install --verbose  # Verbose output for debugging
 
 # Verify workspace exists
-if [ ! -d "Runner.xcworkspace" ]; then
-    echo "Error: Runner.xcworkspace was not created by pod install"
+if [ ! -f "Runner.xcworkspace/contents.xcworkspacedata" ]; then
+    echo "Error: Runner.xcworkspace was not created properly"
+    echo "Current directory contents:"
+    ls -la
+    echo "Workspace directory contents:"
+    ls -la Runner.xcworkspace || echo "Workspace directory does not exist"
     exit 1
 fi
 
-# Now that workspace exists, run xcodebuild
-xcrun xcodebuild clean -workspace Runner.xcworkspace -scheme Runner
-xcrun xcodebuild -workspace Runner.xcworkspace \
-    -scheme Runner \
-    -configuration Release \
-    -allowProvisioningUpdates \
-    DEVELOPMENT_TEAM="2LPDHJ2TD4" \
-    CODE_SIGN_STYLE="Automatic" \
-    CODE_SIGN_IDENTITY="-" \
-    PROVISIONING_PROFILE_SPECIFIER="" \
-    ARCHS="arm64" \
-    ONLY_ACTIVE_ARCH=NO \
-    BUILD_LIBRARY_FOR_DISTRIBUTION=YES \
-    DEAD_CODE_STRIPPING=NO \
-    STRIP_INSTALLED_PRODUCT=NO \
-    COPY_PHASE_STRIP=NO \
-    -showBuildSettings
+# Create symbolic link at repository root if needed
+cd "$REPO_ROOT"
+if [ ! -d "Runner.xcworkspace" ]; then
+    ln -s ios/Runner.xcworkspace Runner.xcworkspace
+fi
 
-echo "Pre-build configuration completed"
+echo "Workspace setup completed successfully"
