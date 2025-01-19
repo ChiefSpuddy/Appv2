@@ -2,6 +2,7 @@
 
 # Exit if any command fails
 set -e
+set -x  # Enable debug output
 
 echo "Running pre-xcodebuild script..."
 
@@ -26,15 +27,22 @@ if [ ! -d "ios" ]; then
     exit 1
 fi
 
-# Additional iOS build setup
-echo "iOS directory found, updating build settings..."
+# Clean Pods and derived data
+echo "Cleaning build artifacts..."
+rm -rf ios/Pods ios/build ios/Runner.xcworkspace
+rm -rf ~/Library/Developer/Xcode/DerivedData/*
+
+# Reinstall pods
+echo "Reinstalling pods..."
 cd ios
+pod cache clean --all
+pod deintegrate
+pod repo update
+pod install --repo-update
 
-# Debug: Show iOS directory contents
-echo "iOS directory contents:"
-ls -la
-
-# Update build settings
+# Configure build settings
+echo "Configuring build settings..."
+xcrun xcodebuild clean -workspace Runner.xcworkspace -scheme Runner
 xcrun xcodebuild -workspace Runner.xcworkspace \
     -scheme Runner \
     -configuration Release \
@@ -43,6 +51,12 @@ xcrun xcodebuild -workspace Runner.xcworkspace \
     CODE_SIGN_STYLE="Automatic" \
     CODE_SIGN_IDENTITY="-" \
     PROVISIONING_PROFILE_SPECIFIER="" \
+    ARCHS="arm64" \
+    ONLY_ACTIVE_ARCH=NO \
+    BUILD_LIBRARY_FOR_DISTRIBUTION=YES \
+    DEAD_CODE_STRIPPING=NO \
+    STRIP_INSTALLED_PRODUCT=NO \
+    COPY_PHASE_STRIP=NO \
     -showBuildSettings
 
 echo "Pre-build configuration completed"

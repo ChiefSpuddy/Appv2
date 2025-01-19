@@ -33,21 +33,13 @@ flutter pub get
 # Check if iOS directory exists
 if [ -d "ios" ]; then
     echo "iOS directory found, installing pods..."
-    
-    # Create symbolic link for workspace at repository root
-    if [ -d "ios/Runner.xcworkspace" ] && [ ! -d "Runner.xcworkspace" ]; then
-        echo "Creating symbolic link for Runner.xcworkspace..."
-        ln -s ios/Runner.xcworkspace Runner.xcworkspace
-    fi
-    
-    # Clean pods first
     cd ios
     rm -rf Pods
     rm -f Podfile.lock
-    
-    # Install pods
+    cd ..
     flutter clean
     flutter pub get
+    cd ios
     pod install --repo-update
     cd ..
 else

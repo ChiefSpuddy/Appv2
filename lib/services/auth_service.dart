@@ -1,16 +1,17 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:google_sign_in/google_sign_in.dart';
 import 'package:flutter/services.dart'; // Add this import for PlatformException
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:shared_preferences/shared_preferences.dart';  // Fix import
+import 'package:sign_in_with_apple/sign_in_with_apple.dart';
+import 'package:crypto/crypto.dart';
+import 'dart:convert';
 
 class AuthService {
   AuthService();  // Remove const constructor
   
   FirebaseAuth get _auth => FirebaseAuth.instance;
   FirebaseFirestore get _db => FirebaseFirestore.instance;
-  final GoogleSignIn _googleSignIn = GoogleSignIn();  // Initialize GoogleSignIn without const
 
   // Auth state changes stream
   Stream<User?> get authStateChanges => _auth.authStateChanges();
@@ -36,12 +37,6 @@ class AuthService {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.clear(); // Clear stored credentials
-      
-      // Clear Google Sign In
-      if (_googleSignIn.currentUser != null) {
-        await _googleSignIn.disconnect();
-        await _googleSignIn.signOut();
-      }
       
       // Clear Firebase Auth
       await _auth.signOut();
@@ -141,91 +136,41 @@ class AuthService {
     }
   }
 
-  Future<UserCredential?> signInWithGoogle() async {
+  Future<UserCredential?> signInWithApple() async {
     try {
-      // First ensure we're signed out completely
-      await signOut();
+      final rawNonce = _generateNonce();
+      final nonce = _sha256ofString(rawNonce);
 
-      if (kIsWeb) {
-        // Create a new provider
-        GoogleAuthProvider googleProvider = GoogleAuthProvider();
-        
-        // Add persistence
-        await _auth.setPersistence(Persistence.LOCAL);
-        
-        googleProvider.setCustomParameters({
-          'prompt': 'select_account', // Force account selection
-          'client_id': '977857362801-rs8b2k59qbudfjuba9dmr4bticab8n06.apps.googleusercontent.com'
-        });
-        
-        // Add these scopes
-        googleProvider.addScope('https://www.googleapis.com/auth/userinfo.email');
-        googleProvider.addScope('https://www.googleapis.com/auth/userinfo.profile');
-        
-        // Try popup first
-        try {
-          final userCredential = await _auth.signInWithPopup(googleProvider);
-          if (userCredential.user != null) {
-            print('Successfully signed in as: ${userCredential.user?.email}');
-            await _handleSignInSuccess(userCredential);
-            return userCredential;
-          }
-          return null;
-        } catch (e) {
-          print('Popup sign in failed, trying redirect: $e');
-          await _auth.signInWithRedirect(googleProvider);
-          return null;
-        }
-      } else {
-        // Mobile implementation
-        await _auth.setPersistence(Persistence.LOCAL);
-        
-        // Force account selection
-        final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
-        
-        if (googleUser == null) {
-          print('Google Sign In was cancelled by user');
-          return null;
-        }
+      final appleCredential = await SignInWithApple.getAppleIDCredential(
+        scopes: [
+          AppleIDAuthorizationScopes.email,
+          AppleIDAuthorizationScopes.fullName,
+        ],
+        nonce: nonce,
+      );
 
-        final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
-        if (googleAuth.accessToken == null || googleAuth.idToken == null) {
-          print('Could not obtain auth tokens');
-          return null;
-        }
+      final oauthCredential = OAuthProvider("apple.com").credential(
+        idToken: appleCredential.identityToken,
+        rawNonce: rawNonce,
+      );
 
-        final credential = GoogleAuthProvider.credential(
-          accessToken: googleAuth.accessToken,
-          idToken: googleAuth.idToken,
-        );
-
-        final userCredential = await _auth.signInWithCredential(credential);
-        if (userCredential.user != null) {
-          print('Successfully signed in as: ${userCredential.user?.email}');
-          await _db.collection('users').doc(userCredential.user!.uid).set({
-            'email': userCredential.user!.email,
-            'displayName': userCredential.user!.displayName,
-            'photoURL': userCredential.user!.photoURL,
-            'lastLogin': FieldValue.serverTimestamp(),
-            'provider': 'google',
-          }, SetOptions(merge: true));
-        }
-
-        return userCredential;
-      }
+      return await _auth.signInWithCredential(oauthCredential);
     } catch (e) {
-      print('Error signing in with Google: $e');
-      if (e is FirebaseAuthException) {
-        print('Firebase Auth Error Code: ${e.code}');
-        print('Firebase Auth Error Message: ${e.message}');
-      } else if (e is PlatformException) {
-        print('Platform Error Code: ${e.code}');
-        print('Platform Error Message: ${e.message}');
-      }
-      // Ensure clean state on error
-      await signOut();
+      print('Apple sign in error: $e');
       return null;
     }
+  }
+
+  String _generateNonce([int length = 32]) {
+    final charset = '0123456789ABCDEFGHIJKLMNOPQRSTUVXYZabcdefghijklmnopqrstuvwxyz-._';
+    final random = Random.secure();
+    return List.generate(length, (_) => charset[random.nextInt(charset.length)]).join();
+  }
+
+  String _sha256ofString(String input) {
+    final bytes = utf8.encode(input);
+    final digest = sha256.convert(bytes);
+    return digest.toString();
   }
 
   Future<void> _handleSignInSuccess(UserCredential credential) async {
@@ -287,31 +232,6 @@ class AuthService {
   Future<List<UserInfo>> getLinkedProviders() async {
     final user = _auth.currentUser;
     return user?.providerData ?? [];
-  }
-
-  Future<void> linkGoogleAccount() async {
-    try {
-      final user = _auth.currentUser;
-      if (user == null) return;
-
-      if (kIsWeb) {
-        final googleProvider = GoogleAuthProvider();
-        await user.linkWithPopup(googleProvider);
-      } else {
-        final googleUser = await _googleSignIn.signIn();
-        if (googleUser == null) return;
-
-        final googleAuth = await googleUser.authentication;
-        final credential = GoogleAuthProvider.credential(
-          accessToken: googleAuth.accessToken,
-          idToken: googleAuth.idToken,
-        );
-        await user.linkWithCredential(credential);
-      }
-    } catch (e) {
-      print('Error linking Google account: $e');
-      rethrow;
-    }
   }
 
   Future<void> unlinkProvider(String providerId) async {

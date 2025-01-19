@@ -12,7 +12,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'services/theme_service.dart';
 import 'providers/theme_provider.dart';
 import 'utils/pointer_event_handler.dart';
-import 'package:google_sign_in/google_sign_in.dart';
 import 'package:flutter/foundation.dart'; // Add this import
 
 Future<void> main() async {

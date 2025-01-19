@@ -34,14 +34,14 @@ dependencies:
   # URL Launcher
   url_launcher: ^6.2.5
 
-  # Google Sign-In
-  google_sign_in: ^6.1.5  # Add this line
-
   # Image Picker
   image_picker: ^1.0.7  # Add this line
 
   # Lottie
   lottie: ^2.7.0  # Add this line with the correct version
+
+  # Apple Sign-In
+  sign_in_with_apple: ^5.0.0
 
 dev_dependencies:
   flutter_test:
@@ -54,7 +54,6 @@ flutter:
     - assets/names.json
     - assets/avatars/
     - assets/images/  # Add this line
-    - assets/images/google_logo.png  # Add this line specifically
     - assets/backgrounds/
     - assets/animations/  # Add this line
 
