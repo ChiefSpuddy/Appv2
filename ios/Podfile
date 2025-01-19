@@ -41,20 +41,15 @@ target 'Runner' do
   use_frameworks!
   use_modular_headers!
 
-  # Remove specific Firebase version pins to avoid conflicts
-  pod 'Firebase/Analytics'
-  pod 'Firebase/Core'
-  pod 'Firebase/Firestore'
-  pod 'Firebase/Auth'
+  # Remove direct Firebase pods since they're handled by the Flutter plugins
+  # pod 'Firebase/Analytics'
+  # pod 'Firebase/Core'
+  # pod 'Firebase/Firestore'
+  # pod 'Firebase/Auth'
   
-  # Add explicit dependency management for GTMAppAuth
-  pod 'GTMAppAuth', '~> 2.0'
-  pod 'AppAuth', '~> 1.6'
-  
-  # Core dependencies
-  pod 'FirebaseCore', '10.25.0'
-  pod 'FirebaseAuth', '10.25.0'
-  pod 'GoogleUtilities', :modular_headers => true
+  # Remove GTMAppAuth since we're not using Google Sign In anymore
+  # pod 'GTMAppAuth', '~> 2.0'
+  # pod 'AppAuth', '~> 1.6'
   
   flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
   
@@ -121,14 +116,12 @@ post_install do |installer|
       end
     end
     
-    # Add specific handling for GTMAppAuth
-    if target.name == 'GTMAppAuth'
-      target.build_configurations.each do |config|
-        config.build_settings['SWIFT_VERSION'] = '5.0'
-        config.build_settings['ENABLE_BITCODE'] = 'NO'
-        config.build_settings['BUILD_LIBRARY_FOR_DISTRIBUTION'] = 'YES'
-        config.build_settings['SWIFT_EMIT_MODULE_INTERFACE'] = 'NO'
-      end
-    end
+    # Remove GTMAppAuth specific handling since we don't use it anymore
+    # if target.name == 'GTMAppAuth'
+    #   config.build_settings['SWIFT_VERSION'] = '5.0'
+    #   config.build_settings['ENABLE_BITCODE'] = 'NO'
+    #   config.build_settings['BUILD_LIBRARY_FOR_DISTRIBUTION'] = 'YES'
+    #   config.build_settings['SWIFT_EMIT_MODULE_INTERFACE'] = 'NO'
+    # end
   end
 end
