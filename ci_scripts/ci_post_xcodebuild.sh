@@ -4,58 +4,27 @@ set -e
 
 echo "Running post-xcodebuild script..."
 
-# Navigate to repository root (parent of ci_scripts)
-cd "$(dirname "$0")/.."
+# List of possible build paths
+POSSIBLE_PATHS=(
+  "/Volumes/workspace/DerivedData/Build/Products/Release-iphoneos"
+  "/Volumes/workspace/DerivedData/Build/Intermediates.noindex/ArchiveIntermediates/Runner/BuildProductsPath/Release-iphoneos"
+  "$(pwd)/build/ios/iphoneos"
+)
 
-# Print build status
-echo "Build exit code: $CI_XCODEBUILD_EXIT_CODE"
-
-# Print derived data contents
-echo "DerivedData contents:"
-ls -la /Volumes/workspace/DerivedData || true
-
-# Create archive directory with proper permissions
-mkdir -p /Volumes/workspace/build.xcarchive
-chmod 777 /Volumes/workspace/build.xcarchive
-
-# Copy build artifacts if they exist
-if [ -d "/Volumes/workspace/DerivedData/Build/Products/Release-iphoneos" ]; then
-  echo "Copying build artifacts to archive..."
-  cp -R /Volumes/workspace/DerivedData/Build/Products/Release-iphoneos/* /Volumes/workspace/build.xcarchive/
-  exit 0
-else
-  echo "Error: Build products directory not found!"
-  ls -la /Volumes/workspace/DerivedData/Build/Products || true
-  exit 1
-fi
-
-# Create archive directory if it doesn't exist
+# Create archive directory
 mkdir -p /Volumes/workspace/build.xcarchive
 
-# Check build archive
-if [ ! -d "/Volumes/workspace/build.xcarchive" ]; then
-    echo "Error: Build archive not found! Build failed with exit code: $CI_XCODEBUILD_EXIT_CODE"
-    # Print more debug info
-    echo "Workspace contents:"
-    ls -la /Volumes/workspace
-    exit 1
-fi
+# Try each possible path
+for BUILD_PATH in "${POSSIBLE_PATHS[@]}"; do
+  echo "Checking build path: $BUILD_PATH"
+  if [ -d "$BUILD_PATH" ]; then
+    echo "Found build products at: $BUILD_PATH"
+    echo "Copying build artifacts to archive..."
+    cp -R "$BUILD_PATH"/* /Volumes/workspace/build.xcarchive/
+    exit 0
+  fi
+done
 
-echo "Build archive contents:"
-ls -la /Volumes/workspace/build.xcarchive || true
-
-# Create archive directory if it doesn't exist
-mkdir -p "${ARCHIVE_PATH}"
-
-# Ensure archive is generated in the correct location
-if [ -d "${BUILD_DIR}" ]; then
-  cp -r "${BUILD_DIR}" "${ARCHIVE_PATH}"
-  echo "Archive successfully created at ${ARCHIVE_PATH}"
-  exit 0
-else
-  echo "Error: Build directory not found!"
-  exit 1
-fi
-
-echo "Post-build tasks completed successfully"
-exit 0
+echo "Error: Could not find build products in any expected location!"
+ls -la /Volumes/workspace/DerivedData/Build || true
+exit 1
