@@ -57,18 +57,19 @@ post_install do |installer|
       config.build_settings['BUILD_LIBRARY_FOR_DISTRIBUTION'] = 'YES'
       config.build_settings['ONLY_ACTIVE_ARCH'] = 'NO'
       
-      # Completely override BoringSSL-GRPC settings
       if target.name == 'BoringSSL-GRPC'
-        config.build_settings.delete('OTHER_CFLAGS')
-        config.build_settings.delete('OTHER_CPLUSPLUSFLAGS')
-        config.build_settings['SWIFT_OPTIMIZATION_LEVEL'] = '-Osize'
-        config.build_settings['LLVM_LTO'] = 'YES'
-        config.build_settings['HEADER_SEARCH_PATHS'] = '$(inherited) ${PODS_ROOT}/BoringSSL-GRPC/src/include'
-        config.build_settings['WARNING_CFLAGS'] = '$(inherited) -Wno-shorten-64-to-32 -Wno-unreachable-code -Wno-conditional-uninitialized'
-        config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] = ['$(inherited)', 'BORINGSSL_PREFIX=BoringSSL']
+        # Force remove all compiler flags and set minimal configuration
+        config.build_settings['OTHER_CFLAGS'] = ''
+        config.build_settings['OTHER_CPLUSPLUSFLAGS'] = ''
+        config.build_settings['OTHER_LDFLAGS'] = ''
         config.build_settings['CLANG_CXX_LANGUAGE_STANDARD'] = 'c++11'
-        config.build_settings['VALID_ARCHS'] = 'arm64'
         config.build_settings['ARCHS'] = 'arm64'
+        config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] = ['$(inherited)']
+        
+        # Remove any potential problematic settings
+        config.build_settings.delete('GCC_OPTIMIZATION_LEVEL')
+        config.build_settings.delete('COMPILER_INDEX_STORE_ENABLE')
+        config.build_settings.delete('CLANG_ENABLE_MODULE_DEBUGGING')
       end
     end
     flutter_additional_ios_build_settings(target)
