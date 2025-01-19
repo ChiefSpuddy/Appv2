@@ -2,6 +2,7 @@
 #define Runner_Bridging_Header_h
 
 #import "GeneratedPluginRegistrant.h"
+#import "GIDEMMSupport+AuthSession.h"
 @import GoogleSignIn;
 @import GTMAppAuth;
 @import GTMSessionFetcher;
