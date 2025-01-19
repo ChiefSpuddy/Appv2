@@ -41,23 +41,22 @@ target 'Runner' do
   use_frameworks!
   use_modular_headers!
 
-  # Remove duplicate and conflicting versions
-  # pod 'GoogleSignIn', '~> 7.0'  # Remove this line
-  # pod 'GTMAppAuth', '~> 2.0'    # Remove this line
-  # pod 'AppAuth', '~> 1.6'       # Remove this line
+  # Remove specific versions and let plugins handle dependencies
+  # pod 'GoogleSignIn', '~> 7.0'  # Remove this
+  # pod 'GTMAppAuth', '~> 2.0'    # Remove this
+  # pod 'AppAuth', '>= 1.7.4'     # Remove this
   
   # Firebase dependencies with specific versions
   pod 'Firebase/Analytics'
-  pod 'Firebase/Auth'
   pod 'Firebase/Core'
-  pod 'Firebase/Firestore', '10.25.0'  # Add specific version
+  pod 'Firebase/Firestore', '10.25.0'
+  pod 'Firebase/Auth', '10.25.0'
   
   # Core dependencies
-  pod 'FirebaseCore', :modular_headers => true
+  pod 'FirebaseCore', '10.25.0'
+  pod 'FirebaseAuth', '10.25.0'
   pod 'GoogleUtilities', :modular_headers => true
-  pod 'FirebaseAuth', :modular_headers => true
   
-  # Let flutter_install_all_ios_pods handle the plugin dependencies
   flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
   
   target 'RunnerTests' do
