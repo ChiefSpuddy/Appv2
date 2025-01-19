@@ -1,13 +1,19 @@
 platform :ios, '12.0'
 
-# CocoaPods analytics sends network stats synchronously affecting flutter build latency.
+# Prevent CocoaPods from sending stats
 ENV['COCOAPODS_DISABLE_STATS'] = 'true'
+
+# Pin Firebase versions
+$FirebaseSDKVersion = '10.18.0'
 
 project 'Runner', {
   'Debug' => :debug,
   'Profile' => :release,
   'Release' => :release,
 }
+
+# Use the version that Firebase requires
+pod 'BoringSSL-GRPC', '0.0.32'
 
 def flutter_root
   generated_xcode_build_settings_path = File.expand_path(File.join('..', 'Flutter', 'Generated.xcconfig'), __FILE__)
@@ -48,39 +54,20 @@ target 'Runner' do
   end
 end
 
-pre_install do |installer|
-  # Apply patch to BoringSSL-GRPC
-  system('mkdir -p ios/patches')
-  system('cp patches/BoringSSL-GRPC.patch Pods/BoringSSL-GRPC/')
-  Dir.chdir('Pods/BoringSSL-GRPC') do
-    system('patch -p1 < BoringSSL-GRPC.patch')
-  end
-end
-
 post_install do |installer|
   installer.pods_project.targets.each do |target|
     target.build_configurations.each do |config|
-      # Default settings for all targets
       config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '12.0'
       config.build_settings['ENABLE_BITCODE'] = 'NO'
       config.build_settings['BUILD_LIBRARY_FOR_DISTRIBUTION'] = 'YES'
-      config.build_settings['ONLY_ACTIVE_ARCH'] = 'NO'
+      config.build_settings['ARCHS'] = 'arm64'
       
+      # Remove problematic flags
       if target.name == 'BoringSSL-GRPC'
-        # Force remove all compiler flags and set minimal configuration
         config.build_settings['OTHER_CFLAGS'] = ''
-        config.build_settings['OTHER_CPLUSPLUSFLAGS'] = ''
         config.build_settings['OTHER_LDFLAGS'] = ''
-        config.build_settings['CLANG_CXX_LANGUAGE_STANDARD'] = 'c++11'
-        config.build_settings['ARCHS'] = 'arm64'
-        config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] = ['$(inherited)']
-        
-        # Remove any potential problematic settings
-        config.build_settings.delete('GCC_OPTIMIZATION_LEVEL')
-        config.build_settings.delete('COMPILER_INDEX_STORE_ENABLE')
-        config.build_settings.delete('CLANG_ENABLE_MODULE_DEBUGGING')
+        config.build_settings['SWIFT_OPTIMIZATION_LEVEL'] = '-Onone'
       end
     end
-    flutter_additional_ios_build_settings(target)
   end
 end
