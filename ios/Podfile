@@ -48,6 +48,15 @@ target 'Runner' do
   end
 end
 
+pre_install do |installer|
+  # Apply patch to BoringSSL-GRPC
+  system('mkdir -p ios/patches')
+  system('cp patches/BoringSSL-GRPC.patch Pods/BoringSSL-GRPC/')
+  Dir.chdir('Pods/BoringSSL-GRPC') do
+    system('patch -p1 < BoringSSL-GRPC.patch')
+  end
+end
+
 post_install do |installer|
   installer.pods_project.targets.each do |target|
     target.build_configurations.each do |config|

@@ -1,0 +1,10 @@
+diff --git a/build.xcconfig b/build.xcconfig
+new file mode 100644
+--- /dev/null
++++ b/build.xcconfig
+@@ -0,0 +1,5 @@
++OTHER_CFLAGS = $(inherited)
++ARCHS = arm64
++VALID_ARCHS = arm64
++ONLY_ACTIVE_ARCH = NO
++GCC_OPTIMIZATION_LEVEL = 0
