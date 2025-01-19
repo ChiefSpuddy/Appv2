@@ -27,21 +27,26 @@ if [ ! -d "ios" ]; then
     exit 1
 fi
 
-# Clean Pods and derived data
-echo "Cleaning build artifacts..."
-rm -rf ios/Pods ios/build ios/Runner.xcworkspace
+# Ensure we're in the ios directory
+cd ios || exit 1
+
+# Clean everything first
+rm -rf Pods build Runner.xcworkspace
 rm -rf ~/Library/Developer/Xcode/DerivedData/*
 
-# Reinstall pods
-echo "Reinstalling pods..."
-cd ios
+# Setup pods
 pod cache clean --all
 pod deintegrate
 pod repo update
-pod install --repo-update
+pod install  # This will recreate Runner.xcworkspace
 
-# Configure build settings
-echo "Configuring build settings..."
+# Verify workspace exists
+if [ ! -d "Runner.xcworkspace" ]; then
+    echo "Error: Runner.xcworkspace was not created by pod install"
+    exit 1
+fi
+
+# Now that workspace exists, run xcodebuild
 xcrun xcodebuild clean -workspace Runner.xcworkspace -scheme Runner
 xcrun xcodebuild -workspace Runner.xcworkspace \
     -scheme Runner \
