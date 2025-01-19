@@ -8,4 +8,6 @@ SWIFT_COMPILATION_MODE = singlefile
 VALIDATES_PRODUCT = YES
 
 GCC_PREPROCESSOR_DEFINITIONS = $(inherited) COCOAPODS=1 $(inherited)
-HEADER_SEARCH_PATHS = $(inherited) "${PODS_ROOT}/Headers/Public" "${PODS_ROOT}/Headers/Public/GTMAppAuth"
+HEADER_SEARCH_PATHS = $(inherited) "${PODS_ROOT}/Headers/Public" "${PODS_ROOT}/Headers/Public/GTMAppAuth" "${PODS_ROOT}/GoogleSignIn/GoogleSignIn"
+FRAMEWORK_SEARCH_PATHS = $(inherited) "${PODS_ROOT}/GoogleSignIn/Frameworks"
+OTHER_LDFLAGS = $(inherited) -framework "GoogleSignIn" -framework "GTMAppAuth"
