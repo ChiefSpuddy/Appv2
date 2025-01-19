@@ -1,2 +1,9 @@
 #include? "Pods/Target Support Files/Pods-Runner/Pods-Runner.release.xcconfig"
 #include "Generated.xcconfig"
+
+DEAD_CODE_STRIPPING = NO
+ONLY_ACTIVE_ARCH = NO
+ENABLE_TESTABILITY = NO
+VALIDATE_WORKSPACE = YES
+VALIDATE_PRODUCT = YES
+DEVELOPMENT_TEAM = 2LPDHJ2TD4
