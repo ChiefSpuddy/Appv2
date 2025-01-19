@@ -479,6 +479,7 @@
 				SUPPORTED_PLATFORMS = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				VALIDATE_PRODUCT = YES;
+				ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES = YES;
 			};
 			name = Profile;
 		};
@@ -500,6 +501,7 @@
 				SWIFT_OBJC_BRIDGING_HEADER = "Runner/Runner-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
 				VERSIONING_SYSTEM = "apple-generic";
+				ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES = YES;
 			};
 			name = Profile;
 		};
@@ -518,6 +520,7 @@
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Runner.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Runner";
+				ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES = YES;
 			};
 			name = Debug;
 		};
@@ -534,6 +537,7 @@
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_VERSION = 5.0;
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Runner.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Runner";
+				ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES = YES;
 			};
 			name = Release;
 		};
@@ -550,6 +554,7 @@
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_VERSION = 5.0;
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Runner.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Runner";
+				ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES = YES;
 			};
 			name = Profile;
 		};
@@ -607,6 +612,7 @@
 				ONLY_ACTIVE_ARCH = YES;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
+				ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES = YES;
 			};
 			name = Debug;
 		};
@@ -661,6 +667,7 @@
 				SWIFT_OPTIMIZATION_LEVEL = "-O";
 				TARGETED_DEVICE_FAMILY = "1,2";
 				VALIDATE_PRODUCT = YES;
+				ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES = YES;
 			};
 			name = Release;
 		};
@@ -683,6 +690,7 @@
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
 				VERSIONING_SYSTEM = "apple-generic";
+				ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES = YES;
 			};
 			name = Debug;
 		};
@@ -704,6 +712,7 @@
 				SWIFT_OBJC_BRIDGING_HEADER = "Runner/Runner-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
 				VERSIONING_SYSTEM = "apple-generic";
+				ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES = YES;
 			};
 			name = Release;
 		};
