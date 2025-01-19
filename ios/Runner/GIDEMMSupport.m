@@ -1,45 +1,13 @@
-#import <Foundation/Foundation.h>
-#import <GoogleSignIn/GoogleSignIn.h>
-#import <GTMAppAuth/GTMAppAuth.h>
 #import "GIDEMMSupport.h"
 
-@implementation GIDEMMSupport {
-    GTMAppAuthFetcherAuthorization *_authorization;
-    OIDAuthState *_authState;
-}
+@implementation GIDEMMSupport
 
 @synthesize authorization = _authorization;
 @synthesize authState = _authState;
 
-- (GTMAppAuthFetcherAuthorization *)authorization {
-    return _authorization;
+- (void)didChangeState:(OIDAuthState *)state {
+    self.authorization = [[GTMAppAuthFetcherAuthorization alloc] initWithAuthState:state];
+    self.authState = state;
 }
 
-- (void)setAuthorization:(GTMAppAuthFetcherAuthorization *)authorization {
-    _authorization = authorization;
-}
-
-- (OIDAuthState *)authState {
-    return _authState;
-}
-
-- (void)setAuthState:(OIDAuthState *)authState {
-    _authState = authState;
-}
-
-- (void)didFinishWithAuth:(GTMAppAuthFetcherAuthorization *)authorization 
-                   error:(NSError *)error {
-    if (error) {
-        NSLog(@"EMM Auth error: %@", error);
-        return;
-    }
-    
-    self.authorization = authorization;
-    self.authState = authorization.authState;
-}
-
-- (void)authState:(OIDAuthState *)state didChangeTokensWithAddition:(nullable OIDTokenResponse *)tokensAdded removal:(nullable OIDTokenResponse *)tokensRemoved {
-    self.authorization = [[GTMAppAuthFetcherAuthorization alloc] initWithAuthState:self.authState];
-}
-
-- (
+@end
