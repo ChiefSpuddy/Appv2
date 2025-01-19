@@ -48,33 +48,26 @@ post_install do |installer|
       
       # BoringSSL-GRPC specific settings
       if target.name == 'BoringSSL-GRPC'
-        # Force static library
+        # Force static library with minimal settings
+        config.build_settings.delete('OTHER_CFLAGS')
+        config.build_settings.delete('OTHER_CXXFLAGS')
+        config.build_settings.delete('OTHER_LDFLAGS')
+        config.build_settings.delete('GCC_OPTIMIZATION_LEVEL')
+        
+        # Set absolute minimal compilation flags
         config.build_settings['MACH_O_TYPE'] = 'staticlib'
-        config.build_settings['ONLY_ACTIVE_ARCH'] = 'NO'
-        
-        # X.509 specific files need special handling
-        x509_files = ['x_x509a.c', 'x_x509.c', 'x_val.c', 'x_req.c', 'x_sig.c', 'x_name.c']
-        
-        # Create a per-file setting for X.509 files
-        config.build_settings['PER_FILE_FLAGS'] = {} if config.build_settings['PER_FILE_FLAGS'].nil?
-        
-        # Apply special flags for X.509 files
-        x509_files.each do |file|
-          config.build_settings['PER_FILE_FLAGS'][file] = '-O0'
-        end
-        
-        # Global settings for other files
-        config.build_settings['GCC_OPTIMIZATION_LEVEL'] = '2'
+        config.build_settings['SKIP_INSTALL'] = 'YES'
+        config.build_settings['GCC_OPTIMIZATION_LEVEL'] = '0'
+        config.build_settings['DEBUG_INFORMATION_FORMAT'] = 'dwarf'
         config.build_settings['COMPILER_INDEX_STORE_ENABLE'] = 'NO'
-        config.build_settings['OTHER_CFLAGS'] = '-fno-strict-aliasing'
-        config.build_settings['OTHER_CXXFLAGS'] = '-fno-strict-aliasing'
+        config.build_settings['CLANG_ENABLE_MODULES'] = 'NO'
+        config.build_settings['CLANG_ENABLE_MODULE_DEBUGGING'] = 'NO'
+        config.build_settings['ENABLE_STRICT_OBJC_MSGSEND'] = 'NO'
         
-        # Preprocessor definitions
+        # Minimal preprocessor definitions
         config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] = [
           '$(inherited)',
-          'OPENSSL_NO_ASM=1',
-          'NDEBUG=1',
-          'OPENSSL_NO_DYNAMIC_ENGINE=1'
+          'OPENSSL_NO_ASM=1'
         ]
       end
     end
