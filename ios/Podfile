@@ -46,44 +46,32 @@ post_install do |installer|
       config.build_settings['BUILD_LIBRARY_FOR_DISTRIBUTION'] = 'YES'
       config.build_settings['ARCHS'] = 'arm64'
       
-      # Completely reset and reconfigure BoringSSL-GRPC
+      # BoringSSL-GRPC specific settings
       if target.name == 'BoringSSL-GRPC'
-        # Remove all existing flags
-        config.build_settings.delete('OTHER_CFLAGS')
-        config.build_settings.delete('OTHER_CXXFLAGS')
-        config.build_settings.delete('OTHER_LDFLAGS')
-        
-        # Force static linking
-        config.build_settings['MACH_O_TYPE'] = 'staticlib'
-        config.build_settings['SUPPORTS_MACCATALYST'] = 'NO'
-        config.build_settings['SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD'] = 'NO'
-        
-        # Basic compilation settings
+        # Basic settings
         config.build_settings['CLANG_ENABLE_MODULES'] = 'NO'
-        config.build_settings['CLANG_ENABLE_OBJC_ARC'] = 'YES'
-        config.build_settings['GCC_OPTIMIZATION_LEVEL'] = '2'
+        config.build_settings['COMPILER_INDEX_STORE_ENABLE'] = 'NO'
         config.build_settings['ONLY_ACTIVE_ARCH'] = 'NO'
+        
+        # Optimization and architecture settings
+        config.build_settings['GCC_OPTIMIZATION_LEVEL'] = '2'
+        config.build_settings['LLVM_LTO'] = 'NO'
+        
+        # X.509 specific compiler flags
+        x509_flags = '-Wno-shorten-64-to-32 -Wno-conditional-uninitialized -Wno-unreachable-code -Wno-conversion'
+        base_flags = '-fno-omit-frame-pointer -O2'
+        
+        # Set compiler flags
+        config.build_settings['OTHER_CFLAGS'] = "#{base_flags} #{x509_flags}"
+        config.build_settings['OTHER_CXXFLAGS'] = "#{base_flags} #{x509_flags}"
         
         # Preprocessor definitions
         config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] = [
           '$(inherited)',
           'OPENSSL_NO_ASM=1',
           'BORINGSSL_PREFIX=CF',
-          'BORINGSSL_IMPLEMENTATION=1'
+          'OPENSSL_NO_DYNAMIC_ENGINE=1'
         ]
-        
-        # Conservative compiler flags
-        config.build_settings['OTHER_CFLAGS'] = [
-          '-fno-omit-frame-pointer',
-          '-O2',
-          '-fstack-protector'
-        ].join(' ')
-        
-        config.build_settings['OTHER_CXXFLAGS'] = [
-          '-fno-omit-frame-pointer',
-          '-O2',
-          '-fstack-protector'
-        ].join(' ')
       end
     end
     flutter_additional_ios_build_settings(target)
