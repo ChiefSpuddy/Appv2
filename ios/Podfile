@@ -60,12 +60,13 @@ post_install do |installer|
       config.build_settings['STRIP_INSTALLED_PRODUCT'] = 'NO'
       config.build_settings['COPY_PHASE_STRIP'] = 'NO'
       
-      # Special handling for BoringSSL-GRPC
+      # Specifically handle BoringSSL-GRPC flags
       if target.name == 'BoringSSL-GRPC'
-        config.build_settings['CLANG_WARN_DOCUMENTATION_COMMENTS'] = 'NO'
-        config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] ||= ['$(inherited)']
-        config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] << 'BORINGSSL_PREFIX=BoringSSL'
-        config.build_settings['OTHER_CFLAGS'] = ['$(inherited)', '-fmodules']
+        config.build_settings['OTHER_CFLAGS'] = '$(inherited)'
+        config.build_settings['SWIFT_VERSION'] = '5.0'
+        config.build_settings['CLANG_CXX_LANGUAGE_STANDARD'] = 'c++11'
+        config.build_settings['CLANG_CXX_LIBRARY'] = 'libc++'
+        config.build_settings['OTHER_LDFLAGS'] = '$(inherited)'
         config.build_settings['ARCHS'] = 'arm64'
       end
     end
