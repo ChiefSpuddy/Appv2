@@ -15,13 +15,13 @@ echo "DerivedData contents:"
 ls -la /Volumes/workspace/DerivedData || true
 
 # Create archive directory with proper permissions
-sudo mkdir -p /Volumes/workspace/build.xcarchive
-sudo chmod 777 /Volumes/workspace/build.xcarchive
+mkdir -p /Volumes/workspace/build.xcarchive
+chmod 777 /Volumes/workspace/build.xcarchive
 
 # Copy build artifacts if they exist
 if [ -d "/Volumes/workspace/DerivedData/Build/Products/Release-iphoneos" ]; then
   echo "Copying build artifacts to archive..."
-  sudo cp -R /Volumes/workspace/DerivedData/Build/Products/Release-iphoneos/* /Volumes/workspace/build.xcarchive/
+  cp -R /Volumes/workspace/DerivedData/Build/Products/Release-iphoneos/* /Volumes/workspace/build.xcarchive/
   exit 0
 else
   echo "Error: Build products directory not found!"
