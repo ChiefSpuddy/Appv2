@@ -1,4 +1,4 @@
-# Miscellaneous
+# General
 *.class
 *.lock
 *.log
@@ -9,88 +9,13 @@
 .buildlog/
 .history
 .svn/
+.vscode/
 
-# IntelliJ related
+# IntelliJ / IDE-specific
 *.iml
 *.ipr
 *.iws
 .idea/
-
-# Flutter/Dart/Pub related
-**/doc/api/
-**/ios/Flutter/.last_build_id
-.dart_tool/
-.flutter-plugins
-.flutter-plugins-dependencies
-.packages
-.pub-cache/
-.pub/
-/build/
-
-# Android related
-**/android/**/gradle-wrapper.jar
-**/android/.gradle
-**/android/captures/
-**/android/gradlew
-**/android/gradlew.bat
-**/android/local.properties
-**/android/**/GeneratedPluginRegistrant.java
-
-# iOS/XCode related
-**/ios/**/*.mode1v3
-**/ios/**/*.mode2v3
-**/ios/**/*.moved-aside
-**/ios/**/*.pbxuser
-**/ios/**/*.perspectivev3
-**/ios/**/*sync/
-**/ios/**/.sconsign.dblite
-**/ios/**/.tags*
-**/ios/**/.vagrant/
-**/ios/**/DerivedData/
-**/ios/**/Icon?
-**/ios/**/Pods/
-**/ios/**/.symlinks/
-**/ios/**/profile
-**/ios/**/xcuserdata
-**/ios/.generated/
-**/ios/Flutter/.last_build_id
-**/ios/Flutter/App.framework
-**/ios/Flutter/Flutter.framework
-**/ios/Flutter/Flutter.podspec
-**/ios/Flutter/Generated.xcconfig
-**/ios/Flutter/ephemeral
-**/ios/Flutter/app.flx
-**/ios/Flutter/app.zip
-**/ios/Flutter/flutter_assets/
-**/ios/Flutter/flutter_export_environment.sh
-**/ios/ServiceDefinitions.json
-**/ios/Runner/GeneratedPluginRegistrant.*
-
-# Web related
-**/web/favicon.png
-**/web/icons/
-**/web/manifest.json
-lib/generated_plugin_registrant.dart
-
-# Symbolication related
-app.*.symbols
-
-# Obfuscation related
-app.*.map.json
-
-# Android Studio will place build artifacts here
-/android/app/debug
-/android/app/profile
-/android/app/release
-
-# Firebase config files
-google-services.json
-GoogleService-Info.plist
-firebase_options.dart
-
-# Environment files
-.env
-.env.*
 
 # Flutter/Dart specific
 .dart_tool/
@@ -100,15 +25,10 @@ firebase_options.dart
 build/
 .pub-cache/
 .pub/
-*.class
-*.log
-*.pyc
-*.swp
-.DS_Store
-.atom/
-.buildlog/
-.history
-.svn/
+lib/generated_plugin_registrant.dart
+web/favicon.png
+web/icons/
+web/manifest.json
 
 # Android specific
 android/**/gradle-wrapper.jar
@@ -121,7 +41,7 @@ android/app/debug
 android/app/profile
 android/app/release
 
-# iOS specific
+# iOS/Xcode specific
 ios/Flutter/.last_build_id
 ios/**/*.mode1v3
 ios/**/*.mode2v3
@@ -129,6 +49,18 @@ ios/**/*.moved-aside
 ios/**/*.pbxuser
 ios/**/*.perspectivev3
 ios/**/*sync/
+ios/**/.sconsign.dblite
+ios/**/.tags*
+ios/**/.vagrant/
+ios/**/DerivedData/
+ios/**/Icon?
+ios/**/Pods/
+ios/**/.symlinks/
+ios/**/profile
+ios/**/xcuserdata
+ios/.generated/
+ios/Flutter/.last_build_id
+ios/Flutter/App.framework
 ios/Flutter/Flutter.framework
 ios/Flutter/Flutter.podspec
 ios/Flutter/Generated.xcconfig
@@ -136,19 +68,41 @@ ios/Flutter/ephemeral
 ios/Flutter/app.flx
 ios/Flutter/app.zip
 ios/Flutter/flutter_assets/
+ios/Flutter/flutter_export_environment.sh
 ios/ServiceDefinitions.json
 ios/Runner/GeneratedPluginRegistrant.*
 
-# VS Code specific
-.vscode/
+# macOS specific
+macos/Flutter/ephemeral/
+macos/Flutter/flutter_export_environment.sh
+macos/Flutter/Flutter.framework
+macos/Flutter/GeneratedPluginRegistrant.swift
+
+# Symbolication related
+app.*.symbols
+
+# Obfuscation related
+app.*.map.json
 
 # Firebase config
-lib/firebase_options.dart
 android/app/google-services.json
 ios/Runner/GoogleService-Info.plist
+lib/firebase_options.dart
 
-# Environment variables
-.env*
+# Environment files
+.env
+.env.*
 
-# Node.js specific
+# Node.js / npm
 node_modules/
+
+# Exclude these workspace files to ensure Xcode Cloud works
+!ios/Runner.xcworkspace/
+!ios/Runner.xcodeproj/
+!ios/Runner/Assets.xcassets/
+!macos/Runner.xcworkspace/
+!macos/Runner.xcodeproj/
+
+# Prevent ignoring key files required by Xcode Cloud
+!ios/Runner.xcworkspace/contents.xcworkspacedata
+!ios/Runner.xcodeproj/project.pbxproj
