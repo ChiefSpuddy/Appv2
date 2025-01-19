@@ -8,16 +8,10 @@
 @import AppAuth;
 
 @class GTMAppAuthFetcherAuthorization;
+@class OIDAuthState;
 
-@protocol GTMAuthSessionDelegate <NSObject>
-- (void)didFinishWithAuth:(GTMAppAuthFetcherAuthorization *)authorization 
-                   error:(nullable NSError *)error;
-@end
-
-typedef NS_ENUM(NSInteger, GIDEMMErrorCode) {
-    GIDEMMErrorCodeUnknown = -1,
-    GIDEMMErrorCodeMissingConfiguration = 1,
-};
+@protocol GTMAuthSessionDelegate;
+@protocol OIDAuthStateChangeDelegate;
 
 @interface GIDEMMSupport : NSObject <GTMAuthSessionDelegate>
 @property(nonatomic, strong, nullable) OIDAuthState *authState;
