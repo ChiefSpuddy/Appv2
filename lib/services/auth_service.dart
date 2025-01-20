@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';  // Fix import
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:crypto/crypto.dart';
 import 'dart:convert';
+import 'dart:math';
 
 class AuthService {
   AuthService();  // Remove const constructor
