@@ -78,4 +78,7 @@ pod install --verbose
 cd ..
 ln -s ios/Runner.xcworkspace Runner.xcworkspace
 
+# Important: Generate Flutter iOS framework
+flutter build ios-framework --no-profile --no-release
+
 echo "Post-clone setup completed"

@@ -23,9 +23,10 @@ dependencies:
   fl_chart: ^0.66.0
   
   # Firebase
-  firebase_core: ^2.27.1
-  firebase_auth: ^4.17.9
-  cloud_firestore: ^4.15.9
+  # Pin Firebase versions
+  firebase_core: ^2.24.2
+  firebase_auth: ^4.15.3
+  cloud_firestore: ^4.13.6
   
   # Networking & Data
   http: ^1.2.0  # Make sure this is included
